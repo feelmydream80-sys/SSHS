@@ -1,0 +1,34 @@
+{
+  "server": {
+    "host": "127.0.0.1",
+    "port": 5001,
+    "debug": true
+  },
+  "api_keys": {
+    "neis": "35b75a10a2fe426b8aa1b072ab2be207",
+    "food_nutrition": "56aa9dbe43a9e6d710ac47b79733815f59dca92c911790cbe6ca6f7113eb4959"
+  },
+  "model": {
+    "yolo_path": "best.pt",
+    "warp_width": 600,
+    "warp_height": 450,
+    "conf_threshold": 0.15,
+    "imgsz": 500
+  },
+  "tray": {
+    "real_width_cm": 35,
+    "real_height_cm": 25
+  },
+  "food": {
+    "default_density": 0.8,
+    "soup_weight": 350,
+    "tray_heights_cm": {
+      "1": 2.0,
+      "2": 1.5,
+      "3": 1.0,
+      "4": 1.0,
+      "5": 1.5
+    },
+    "soup_keywords": ["국", "찌개", "탕", "스프", "죽"]
+  }
+}

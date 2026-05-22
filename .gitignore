@@ -1,0 +1,6 @@
+analysis_results/
+uploaded_images/
+*.pth
+__pycache__/
+*.pyc
+.env
