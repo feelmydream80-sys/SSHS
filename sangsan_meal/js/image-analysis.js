@@ -1,5 +1,16 @@
 let iSelectedFile = null;
 let iMenuData = null;
+let iIsLocalMode = false;
+
+async function iCheckMode() {
+  try {
+    const resp = await fetch('/api/health', { method: 'GET', signal: AbortSignal.timeout(2000) });
+    if (resp.ok) iIsLocalMode = true;
+    else iIsLocalMode = false;
+  } catch {
+    iIsLocalMode = false;
+  }
+}
 
 function icd(n) {
   const c = new Date(document.getElementById('idp').value);
@@ -16,6 +27,10 @@ function iloadMenu() {
 
 function ihandleFile(file) {
   if (!file) return;
+  if (!iIsLocalMode) {
+    alert('이미지 분석은 로컬 Flask 서버에서만 가능합니다.\npython server.py 실행 후 이용해주세요.');
+    return;
+  }
   iSelectedFile = file;
   const reader = new FileReader();
   reader.onload = function(e) {
@@ -49,19 +64,25 @@ async function ifetchMenu() {
   area.innerHTML = '';
 
   try {
-    const dateStr = dv.replace(/-/g, '');
-    const resp = await fetch(`/api/menu/${dateStr}`);
-    const data = await resp.json();
+    let meals = {};
+    let dateStr = dv.replace(/-/g, '');
 
-    if (data.error) {
-      area.innerHTML = `<div style="text-align:center;padding:20px;color:var(--red);font-size:12px">⚠️ ${data.error}</div>`;
-      return;
+    if (iIsLocalMode) {
+      try {
+        const resp = await fetch(`/api/menu/${dateStr}`);
+        const data = await resp.json();
+        if (!data.error) {
+          iMenuData = data;
+          meals = data.meals || {};
+        }
+      } catch {
+        meals = await iFetchNEISDirect(dateStr);
+      }
+    } else {
+      meals = await iFetchNEISDirect(dateStr);
     }
 
-    iMenuData = data;
-    const meals = data.meals || {};
-
-    if (Object.keys(meals).length === 0) {
+    if (!meals || Object.keys(meals).length === 0) {
       area.innerHTML = '<div style="text-align:center;padding:20px;color:var(--muted);font-size:12px">📭 해당일 급식 정보가 없습니다.</div>';
       return;
     }
@@ -69,13 +90,15 @@ async function ifetchMenu() {
     let html = '';
     for (const [mealName, mealInfo] of Object.entries(meals)) {
       const mealColor = MC[mealName] || '#fff';
+      const calInfo = typeof mealInfo === 'string' ? mealInfo : (mealInfo.calories || '0');
+      const dishes = typeof mealInfo === 'string' ? [] : (mealInfo.dishes || []);
       html += `<div style="margin-bottom:12px">
         <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
           <span class="meal-badge" style="color:${mealColor};border-color:${mealColor}33;background:${mealColor}0d">${mealName}</span>
-          <span style="font-family:'Space Mono',monospace;font-size:11px;font-weight:700;color:${mealColor}">${mealInfo.calories || '0'} Kcal</span>
+          <span style="font-family:'Space Mono',monospace;font-size:11px;font-weight:700;color:${mealColor}">${calInfo} Kcal</span>
         </div>
         <div class="menu-list">${
-          (mealInfo.dishes || []).map(d => {
+          dishes.map(d => {
             const nums = (d.match(/\(([\d\.]+)\)/g) || []).flatMap(m => m.replace(/[()]/g, '').split('.').map(Number));
             const hasAllergy = nums.some(n => MA.includes(n));
             return `<span class="menu-item ${hasAllergy ? 'aw' : ''}">${d.replace(/\s*\([\d\.]+\)/g, '').trim()}</span>`;
@@ -85,10 +108,11 @@ async function ifetchMenu() {
     }
 
     html += `<div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border)">
-      <div style="font-size:12px;color:var(--muted);margin-bottom:8px;font-weight:700">📝 분석할 메뉴 선택</div>`;
+      <div style="font-size:12px;color:var(--muted);margin-bottom:8px;font-weight:700">📝 분석할 메뉴</div>`;
     const allDishes = [];
     for (const mealInfo of Object.values(meals)) {
-      for (const d of (mealInfo.dishes || [])) {
+      const dishes = typeof mealInfo === 'string' ? [] : (mealInfo.dishes || []);
+      for (const d of dishes) {
         const name = d.replace(/\s*\([\d\.]+\)/g, '').trim();
         if (!allDishes.includes(name)) allDishes.push(name);
       }
@@ -102,14 +126,37 @@ async function ifetchMenu() {
         <span>${displayDishes[i]}</span>
       </label>`;
     }
-    html += '</div></div>';
+    html += '</div>';
 
+    if (!iIsLocalMode) {
+      html += '<div style="margin-top:12px;padding:12px;background:rgba(255,107,107,.08);border:1px solid rgba(255,107,107,.2);border-radius:8px;font-size:11px;color:var(--red)">⚠️ 이미지 분석은 로컬 Flask 서버(python server.py)에서만 가능합니다.</div>';
+    }
+
+    html += '</div>';
     area.innerHTML = html;
   } catch (e) {
     area.innerHTML = `<div style="text-align:center;padding:20px;color:var(--red);font-size:12px">⚠️ 메뉴 로드 실패: ${e.message}</div>`;
   } finally {
     loading.style.display = 'none';
   }
+}
+
+async function iFetchNEISDirect(dateStr) {
+  const rows = await fetchRange(dateStr, dateStr);
+  if (!rows || rows.length === 0) return {};
+
+  const meals = {};
+  for (const row of rows) {
+    const mealName = row.MMEAL_SC_NM;
+    const dishes = row.DDISH_NM ? row.DDISH_NM.split('<br/>').filter(Boolean) : [];
+    meals[mealName] = {
+      calories: row.CAL_INFO || '0',
+      dishes: dishes
+    };
+  }
+
+  iMenuData = { date: dateStr, meals: meals };
+  return meals;
 }
 
 async function ianalyze() {
@@ -133,7 +180,8 @@ async function ianalyze() {
   const allDishes = [];
   if (iMenuData && iMenuData.meals) {
     for (const mealInfo of Object.values(iMenuData.meals)) {
-      for (const d of (mealInfo.dishes || [])) {
+      const dishes = typeof mealInfo === 'string' ? [] : (mealInfo.dishes || []);
+      for (const d of dishes) {
         const name = d.replace(/\s*\([\d\.]+\)/g, '').trim();
         if (!allDishes.includes(name) && name) allDishes.push(name);
       }
@@ -203,7 +251,7 @@ function renderAnalysisResult(record) {
     const kcalColor = s.kcal > 300 ? '#ff6b6b' : s.kcal > 150 ? '#ffd60a' : '#4fffb0';
     return `<div class="result-card">
       <div class="result-card-header">
-        <span class="result-section-badge" style="color:var(--green);border-color:rgba(79,255,176,.3)">${idx + 1}번 칸</span>
+        <span class="result-section-badge" style="color:var(--green);border-color:rgba(79,255,176,.3)">${s.section === 0 ? '국/찌개' : idx + 1 + '번 칸'}</span>
         <span class="result-kcal-big" style="color:${kcalColor}">${s.kcal} <span style="font-size:14px;font-weight:300">Kcal</span></span>
       </div>
       <div class="result-food-name">${s.food_name}</div>
@@ -220,7 +268,7 @@ function renderAnalysisResult(record) {
   const totalKcalColor = result.total_kcal > 1200 ? '#ff6b6b' : result.total_kcal > 600 ? '#ffd60a' : '#4fffb0';
 
   const compareHtml = neisCal > 0
-    ? `<div class="result-compare">📋 NEIS 제공 칼로리: ${neisCal} Kcal | 이미지 분석: ${result.total_kcal} Kcal | 차이: ${Math.abs(result.total_kcal - neisCal)} Kcal (${Math.round(result.total_kcal / (neisCal || 1) * 100)}%)</div>`
+    ? `<div class="result-compare">📋 NEIS 제공 칼로리: ${neisCal} Kcal | 이미지 분석: ${result.total_kcal} Kcal | 차이: ${Math.abs(result.total_kcal - neisCal)} Kcal</div>`
     : '';
 
   done.innerHTML = `
@@ -239,13 +287,19 @@ function getNEISCalTotal() {
   if (!iMenuData || !iMenuData.meals) return 0;
   let total = 0;
   for (const mealInfo of Object.values(iMenuData.meals)) {
-    total += parseFloat(mealInfo.calories) || 0;
+    total += parseFloat(typeof mealInfo === 'string' ? mealInfo : (mealInfo.calories || 0));
   }
   return Math.round(total);
 }
 
 async function loadHistory() {
   const area = document.getElementById('ihistory-area');
+
+  if (!iIsLocalMode) {
+    area.innerHTML = '<div style="text-align:center;padding:20px;color:var(--muted);font-size:12px">📭 분석 이력은 로컬 서버 실행 시 확인 가능합니다.</div>';
+    return;
+  }
+
   try {
     const resp = await fetch('/api/results');
     const results = await resp.json();
@@ -301,7 +355,8 @@ async function deleteHistory(id) {
   }
 }
 
-function ifocusImageTab() {
+async function ifocusImageTab() {
+  await iCheckMode();
   const today = new Date();
   const dp = document.getElementById('idp');
   if (!dp.value) dp.value = fd(today, '-');
