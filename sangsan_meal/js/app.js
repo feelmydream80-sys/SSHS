@@ -11,15 +11,28 @@ const SIDO_LIST = [
 const DEFAULT_SCHOOL = { ATPT: 'P10', CODE: '8321090', NAME: '상산고등학교' };
 let currentSchool = { ...DEFAULT_SCHOOL };
 
+const PROXIES = [
+  { url: u => u, parse: async r => await r.json() },
+  { url: u => `https://api.allorigins.win/get?url=${encodeURIComponent(u)}`, parse: async r => { const o = await r.json(); return JSON.parse(o.contents); } },
+  { url: u => `https://api.codetabs.com/v1/proxy?quest=${u}`, parse: async r => await r.json() },
+  { url: u => `https://corsproxy.io/?${u}`, parse: async r => await r.json() }
+];
+
 async function fetchWithProxy(neisUrl) {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 15000);
-  const res = await fetch(neisUrl, { signal: controller.signal });
-  clearTimeout(timer);
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  const j = await res.json();
-  if (j && (j.mealServiceDietInfo || j.RESULT)) return j;
-  throw new Error('유효하지 않은 응답');
+  let lastErr;
+  for (const proxy of PROXIES) {
+    try {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 15000);
+      const res = await fetch(proxy.url(neisUrl), { signal: controller.signal });
+      clearTimeout(timer);
+      if (!res.ok) { lastErr = new Error(`HTTP ${res.status}`); continue; }
+      const j = await proxy.parse(res);
+      if (j && (j.mealServiceDietInfo || j.RESULT)) return j;
+      lastErr = new Error('유효하지 않은 응답');
+    } catch (e) { lastErr = e; console.warn('프록시 실패:', e.message); }
+  }
+  throw lastErr || new Error('모든 프록시 실패');
 }
 
 const AM = { 1: '난류', 2: '우유', 3: '메밀', 4: '땅콩', 5: '대두', 6: '밀', 7: '고등어', 8: '게', 9: '새우(김치)', 10: '돼지고기', 11: '복숭아', 12: '토마토', 13: '아황산류', 14: '호두', 15: '닭고기', 16: '쇠고기', 17: '오징어', 18: '조개류' };
@@ -963,8 +976,7 @@ async function searchSchoolsRealtime(context) {
     let url = `https://open.neis.go.kr/hub/${endpoint}?KEY=${NK}&Type=json&pIndex=1&pSize=100&ATPT_OFCDC_SC_CODE=${sido}`;
     if (query.length > 0) url += `&SCHUL_NM=${encodeURIComponent(query)}`;
     if (level) url += `&SCHUL_KND_SC_NM=${encodeURIComponent(level)}`;
-    const res = await fetch(url);
-    const j = await res.json();
+    const j = await fetchWithProxy(url);
     if (j.RESULT) { dropdownEl.innerHTML = `<div class="autocomplete-empty">${j.RESULT.MESSAGE || '검색 결과가 없습니다'}</div>`; dropdownEl.classList.add('on'); return; }
     if (!j.schoolInfo) { dropdownEl.innerHTML = '<div class="autocomplete-empty">검색 결과가 없습니다</div>'; dropdownEl.classList.add('on'); return; }
     const rows = j.schoolInfo[1]?.row || [];
