@@ -5,8 +5,8 @@
     "debug": true
   },
   "api_keys": {
-    "neis": "35b75a10a2fe426b8aa1b072ab2be207",
-    "food_nutrition": "56aa9dbe43a9e6d710ac47b79733815f59dca92c911790cbe6ca6f7113eb4959"
+    "neis": "__NEIS_API_KEY__",
+    "food_nutrition": "__FOOD_NUTRITION_API_KEY__"
   },
   "model": {
     "yolo_path": "best.pt",

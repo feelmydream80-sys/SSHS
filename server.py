@@ -25,7 +25,10 @@ os.makedirs(IMAGES_DIR, exist_ok=True)
 
 
 def get_neis_key():
-    return config.get("api_keys", {}).get("neis", "")
+    key = os.environ.get("NEIS_API_KEY") or config.get("api_keys", {}).get("neis", "")
+    if key and not key.startswith("__"):
+        return key
+    return ""
 
 
 @app.route("/")
@@ -41,20 +44,36 @@ def static_files(path):
     return send_from_directory(app.static_folder, "index.html")
 
 
+@app.route("/api/detect", methods=["POST"])
+def api_detect():
+    if "image" not in request.files:
+        return jsonify({"error": "이미지 파일이 필요합니다."}), 400
+    image_file = request.files["image"]
+    ext = os.path.splitext(image_file.filename or "image.jpg")[1] or ".jpg"
+    image_filename = f"detect_{uuid.uuid4().hex}{ext}"
+    image_path = os.path.join(IMAGES_DIR, image_filename)
+    image_file.save(image_path)
+    try:
+        import base64
+        buffer, regions = analyzer.detect(image_path)
+        b64 = base64.b64encode(buffer).decode("utf-8")
+        return jsonify({"image": f"data:image/jpeg;base64,{b64}", "regions": regions})
+    except Exception as e:
+        return jsonify({"error": f"영역 검출 중 오류: {str(e)}"}), 500
+    finally:
+        if os.path.exists(image_path):
+            os.remove(image_path)
+
+
 @app.route("/api/analyze", methods=["POST"])
 def api_analyze():
     if "image" not in request.files:
         return jsonify({"error": "이미지 파일이 필요합니다."}), 400
 
     image_file = request.files["image"]
-    menu_json = request.form.get("menu", "{}")
-    soup_food = request.form.get("soup_food", "")
     date_str = request.form.get("date", datetime.now().strftime("%Y%m%d"))
-
-    try:
-        tray_foods = json.loads(menu_json)
-    except json.JSONDecodeError:
-        return jsonify({"error": "메뉴 데이터가 올바르지 않습니다."}), 400
+    meal_time = request.form.get("meal_time", "")
+    use_regions = request.form.get("use_regions", "")
 
     ext = os.path.splitext(image_file.filename or "image.jpg")[1] or ".jpg"
     image_filename = f"{uuid.uuid4().hex}{ext}"
@@ -62,7 +81,17 @@ def api_analyze():
     image_file.save(image_path)
 
     try:
-        result = analyzer.analyze(image_path, tray_foods, soup_food)
+        if use_regions == "true":
+            regions_json = request.form.get("regions", "[]")
+            regions = json.loads(regions_json)
+            tray_corners_json = request.form.get("tray_corners", "null")
+            tray_corners = json.loads(tray_corners_json) if tray_corners_json != "null" else None
+            result = analyzer.analyze_with_regions(image_path, regions, tray_corners)
+        else:
+            menu_json = request.form.get("menu", "{}")
+            soup_food = request.form.get("soup_food", "")
+            tray_foods = json.loads(menu_json)
+            result = analyzer.analyze(image_path, tray_foods, soup_food)
     except ValueError as e:
         return jsonify({"error": str(e)}), 400
     except Exception as e:
@@ -71,12 +100,28 @@ def api_analyze():
         if os.path.exists(image_path):
             os.remove(image_path)
 
+    if use_regions == "true":
+        menu_from_regions = {}
+        for r in regions:
+            sec = r.get("section", 0)
+            name = r.get("food_name", "")
+            if sec == 0 or sec == 6:
+                menu_from_regions["soup"] = name
+            else:
+                menu_from_regions[str(sec)] = name
+        record_menu = menu_from_regions
+        record_soup = menu_from_regions.get("soup", "")
+    else:
+        record_menu = tray_foods
+        record_soup = soup_food
+
     record = {
         "id": uuid.uuid4().hex[:12],
         "date": date_str,
         "timestamp": datetime.now().isoformat(),
-        "menu": tray_foods,
-        "soup_food": soup_food,
+        "meal_time": meal_time,
+        "menu": record_menu,
+        "soup_food": record_soup,
         "result": result,
         "image_filename": image_filename
     }
@@ -95,6 +140,7 @@ def api_analyze_url():
     tray_foods = data.get("menu", {})
     soup_food = data.get("soup_food", "")
     date_str = data.get("date", datetime.now().strftime("%Y%m%d"))
+    meal_time = data.get("meal_time", "")
 
     if not image_url:
         return jsonify({"error": "이미지 URL이 필요합니다."}), 400
@@ -124,6 +170,7 @@ def api_analyze_url():
         "id": uuid.uuid4().hex[:12],
         "date": date_str,
         "timestamp": datetime.now().isoformat(),
+        "meal_time": meal_time,
         "menu": tray_foods,
         "soup_food": soup_food,
         "result": result,
@@ -285,9 +332,9 @@ def api_health():
 
 
 if __name__ == "__main__":
-    port = config.get("server", {}).get("port", 5000)
-    debug = config.get("server", {}).get("debug", True)
-    host = config.get("server", {}).get("host", "127.0.0.1")
+    port = int(os.environ.get("PORT", config.get("server", {}).get("port", 5000)))
+    debug = os.environ.get("FLASK_ENV", "production") == "development"
+    host = os.environ.get("HOST", config.get("server", {}).get("host", "0.0.0.0"))
     print(f"서버 시작: http://{host}:{port}")
     print(f"분석 결과 저장: {RESULTS_DIR}/")
     app.run(host=host, port=port, debug=debug)

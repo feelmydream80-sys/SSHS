@@ -100,6 +100,9 @@ main{position:relative;z-index:10;max-width:960px;margin:0 auto;padding:24px 16p
 .sum-tab{padding:6px 12px;border-radius:6px;border:1px solid var(--border);background:var(--surface);color:var(--muted);font-family:'Space Mono',monospace;font-size:9px;letter-spacing:.1em;cursor:pointer;transition:all .2s;text-transform:uppercase;}
 .sum-tab.on{background:rgba(79,255,176,.12);border-color:rgba(79,255,176,.3);color:var(--green);}
 .sum-tab:hover{color:var(--text);}
+.meal-time-btn{padding:8px 18px;border-radius:8px;border:1px solid var(--border);background:var(--surface);color:var(--muted);font-family:'Space Mono',monospace;font-size:10px;cursor:pointer;transition:all .2s;}
+.meal-time-btn:hover{color:var(--text);border-color:rgba(255,255,255,.2);}
+.meal-time-btn.selected{background:rgba(79,255,176,.12);border-color:rgba(79,255,176,.3);color:var(--green);}
 @media(max-width:600px){.ntr-freq-grid{grid-template-columns:1fr;}.stat-grid{grid-template-columns:1fr 1fr;}}
 
 .school-select{margin-bottom:12px}

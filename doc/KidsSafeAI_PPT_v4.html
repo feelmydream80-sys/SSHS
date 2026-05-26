@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>KidsSafe AI — 발표자료</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;700;900&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root {
+    --bg: #060608;
+    --surface: rgba(255,255,255,0.03);
+    --border: rgba(255,255,255,0.07);
+    --text: #f0f0f0;
+    --muted: rgba(255,255,255,0.35);
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+    font-family: 'Noto Sans KR', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    overflow: hidden;
+    width: 100vw; height: 100vh;
+}
+.bg-grid {
+    position: fixed; inset: 0;
+    background-image:
+        linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px);
+    background-size: 60px 60px;
+    z-index: 0;
+}
+.progress-track {
+    position: fixed; top: 0; left: 0; right: 0;
+    height: 2px;
+    background: rgba(255,255,255,0.06);
+    z-index: 100;
+}
+#progress-bar {
+    height: 100%;
+    width: 5%;
+    transition: width 0.3s ease;
+}
+.slide-counter {
+    position: fixed; top: 24px; right: 32px;
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+    z-index: 100;
+    letter-spacing: 0.15em;
+}
+.cat-label {
+    position: fixed; top: 24px; left: 32px;
+    font-family: 'Space Mono', monospace;
+    font-size: 10px;
+    color: var(--muted);
+    z-index: 100;
+    letter-spacing: 0.2em;
+}
+.nav-btn {
+    position: fixed; bottom: 32px;
+    z-index: 100;
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.15em;
+    padding: 12px 24px;
+    border-radius: 4px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: rgba(255,255,255,0.5);
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+.nav-btn:hover:not(:disabled) {
+    background: rgba(255,255,255,0.08);
+    color: white;
+    border-color: rgba(255,255,255,0.2);
+}
+.nav-btn:disabled { opacity: 0.15; cursor: default; }
+.prev-btn { left: 32px; }
+.next-btn { right: 32px; background: white; color: black; border-color: white; }
+.next-btn:hover:not(:disabled) { background: rgba(255,255,255,0.85); color: black; }
+.slide {
+    display: none;
+    position: absolute;
+    inset: 0;
+    align-items: center;
+    justify-content: center;
+    padding: 80px 48px 80px;
+    z-index: 10;
+}
+.slide.active { display: flex; }
+.card {
+    width: 100%;
+    max-width: 960px;
+    min-height: 480px;
+    background: rgba(12,12,16,0.85);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 56px 64px;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    justify-content: center;
+    box-shadow: 0 0 0 1px rgba(255,255,255,0.04), 0 40px 80px rgba(0,0,0,0.6);
+}
+.card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 56px; right: 56px;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--accent-color, white), transparent);
+    opacity: 0.4;
+}
+.bg-number {
+    position: absolute;
+    bottom: -20px; right: 40px;
+    font-family: 'Space Mono', monospace;
+    font-size: 200px;
+    font-weight: 700;
+    color: rgba(255,255,255,0.025);
+    line-height: 1;
+    pointer-events: none;
+    letter-spacing: -0.05em;
+}
+.badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 5px 14px;
+    border-radius: 3px;
+    font-family: 'Space Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.18em;
+    margin-bottom: 28px;
+    border: 1px solid;
+}
+.badge-dot { width: 5px; height: 5px; border-radius: 50%; }
+.slide-title {
+    font-size: 36px;
+    font-size: clamp(36px, 5vw, 56px);
+    font-weight: 900;
+    line-height: 1.1;
+    letter-spacing: -0.03em;
+    margin-bottom: 10px;
+}
+.slide-sub {
+    font-size: 13px;
+    font-size: clamp(13px, 1.8vw, 17px);
+    font-weight: 300;
+    color: var(--muted);
+    margin-bottom: 28px;
+    letter-spacing: 0.03em;
+}
+.slide-desc {
+    font-size: 14px;
+    font-size: clamp(14px, 1.8vw, 19px);
+    line-height: 1.7;
+    color: rgba(255,255,255,0.78);
+    font-weight: 300;
+    max-width: 720px;
+}
+.cmd-box {
+    margin-top: 32px;
+    display: inline-flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 14px 22px;
+    background: rgba(0,0,0,0.4);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    border-left: 3px solid var(--accent-color, rgba(255,255,255,0.3));
+}
+.cmd-label {
+    font-family: 'Space Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 0.2em;
+    color: rgba(255,255,255,0.25);
+}
+.cmd-text {
+    font-family: 'Space Mono', monospace;
+    font-size: clamp(12px, 1.4vw, 15px);
+    font-weight: 700;
+}
+.kbd-hint {
+    position: fixed;
+    bottom: 38px; left: 50%;
+    transform: translateX(-50%);
+    font-family: 'Space Mono', monospace;
+    font-size: 9px;
+    color: rgba(255,255,255,0.12);
+    letter-spacing: 0.15em;
+    z-index: 100;
+}
+ul { list-style: none; margin: 12px 0; }
+ul li { position: relative; padding-left: 20px; margin-bottom: 6px; text-align: left; }
+ul li::before { content: '›'; position: absolute; left: 0; font-weight: 700; }
+.desc-list { font-size: clamp(13px, 1.6vw, 17px); line-height: 1.7; color: rgba(255,255,255,0.78); font-weight: 300; text-align: center; }
+.desc-list strong { color: var(--accent-color, #fff); font-weight: 700; }
+.desc-list em { font-style: normal; color: rgba(255,255,255,0.4); font-size: 0.85em; }
+.table-wrap { width: 100%; max-width: 800px; margin: 16px auto 0; }
+.table-wrap table { width: 100%; border-collapse: collapse; font-size: clamp(11px, 1.3vw, 14px); }
+.table-wrap th { background: rgba(52,152,219,0.2); padding: 8px 10px; font-weight: 700; border: 1px solid rgba(255,255,255,0.1); text-align: center; }
+.table-wrap td { padding: 6px 10px; border: 1px solid rgba(255,255,255,0.06); text-align: center; color: rgba(255,255,255,0.7); }
+.table-wrap tr:nth-child(even) td { background: rgba(255,255,255,0.02); }
+.code-box {
+    margin-top: 16px;
+    padding: 10px 18px;
+    background: rgba(0,0,0,0.3);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 6px;
+    font-family: 'Space Mono', monospace;
+    font-size: clamp(11px, 1.2vw, 13px);
+    color: var(--accent-color, #7eb8ff);
+    text-align: center;
+}
+@media print {
+    @page { margin: 0; size: landscape; }
+    body { overflow: visible; width: auto; height: auto; background: #060608 !important; }
+    .bg-grid { display: none !important; }
+    .progress-track, .slide-counter, .cat-label, .nav-btn, .kbd-hint { display: none !important; }
+    .slide {
+        display: flex !important;
+        position: relative !important;
+        inset: auto !important;
+        width: 100vw;
+        height: 100vh;
+        page-break-after: always;
+        page-break-inside: avoid;
+        padding: 40px 48px;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
+    .slide.active { display: flex !important; }
+    .card {
+        box-shadow: none !important;
+        border: 1px solid rgba(255,255,255,0.15) !important;
+        min-height: 400px;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
+    .bg-number { display: block !important; }
+    img { max-height: 50vh; object-fit: contain; }
+}
+</style>
+</head>
+<body>
+<div class="bg-grid"></div>
+<div class="progress-track"><div id="progress-bar"></div></div>
+<div class="slide-counter"><span id="cur-num">01</span> / <span id="tot-num">16</span></div>
+<div class="cat-label" id="cat-label">INTRO</div>
+<button class="nav-btn prev-btn" id="prev-btn" disabled>← BACK</button>
+<button class="nav-btn next-btn" id="next-btn">NEXT →</button>
+<div class="kbd-hint">← → 키보드로 이동</div>
+<main id="slides"></main>
+
+<script>
+const slides = [
+    {
+        cat: "INTRO", num: "01",
+        title: "KidsSafe PWA",
+        sub: "공공데이터 기반 아동 안전 통합 시스템",
+        desc: "GPS 위치 추적, 실시간 위험 탐지, 4단계 안전 미션, TTS 음성 안내까지 — 공공데이터 5종을 통합하여 아이들의 안전한 등하굣길을 만듭니다.",
+        cmd: '"초등학교 앞 횡단보도 접근 중..."',
+        accent: "#4fffb0"
+    },
+    {
+        cat: "SYSTEM", num: "02",
+        title: "시스템 개요",
+        sub: "PWA 하나로 모든 기능을",
+        desc: '<div class="desc-list">📍 GPS 실시간 추적 (3초 간격)<br>🔴 경고범위(15m) 미션 발동, 🟡 주의범위(100m) 알림 표시<br>🎮 4단계 안전 미션 (흔들기 / 회전 / <strong>음성인식 랜덤</strong>)<br>🔊 <strong>TTS 음성 출력</strong> — 위험/주의 알림 + 미션 단계별 음성 안내<br>📳 진동 <strong>0.5초×5회</strong> — 알림/미션 시 진동 피드백<br>🌐 PWA — 오프라인 지원, HTTPS 서비스</div>',
+        cmd: '"현재 위치에서 가장 가까운 위험 구역은?"',
+        accent: "#7eb8ff"
+    },
+    {
+        cat: "DATA", num: "03",
+        title: "활용 공공데이터",
+        sub: "5종 데이터 통합",
+        desc: '<div class="table-wrap"><table><tr><th>데이터명</th><th>제공기관</th><th>건수</th></tr><tr><td>전국교통사고다발지역표준데이터</td><td>한국도로교통공단</td><td>135건</td></tr><tr><td>전국횡단보도표준데이터</td><td>서울 동작구</td><td>1,057건</td></tr><tr><td>학교별 위치정보</td><td>교육부</td><td>115건</td></tr><tr><td>어린이보호구역 데이터</td><td>서울 동작구</td><td>61건</td></tr></table></div>',
+        cmd: '"동작구 초등학교 주변 위험 요소를 분석해줘"',
+        accent: "#c77dff"
+    },
+    {
+        cat: "DATA", num: "04",
+        title: "데이터 파이프라인",
+        sub: "3-Layer 자동화 (Python, ~3초)",
+        desc: '<div class="desc-list"><strong>Layer 1</strong> — 원천 CSV → JSON 변환 (4개 컨버터)<br><strong>Layer 2</strong> — 통합: merge_locations.py → locations.json (<strong>1,368개</strong>, 유효좌표 100%)<br><strong>Layer 3</strong> — 분석: school_safety_grader.py + accessibility_score.py</div><div class="code-box">$ python run_pipeline.py &nbsp; # 7단계, 약 3초</div>',
+        cmd: '"데이터를 업데이트하고 파이프라인을 실행해줘"',
+        accent: "#c77dff"
+    },
+    {
+        cat: "MAP", num: "05",
+        title: "지도 레이어 (8종)",
+        sub: "Leaflet.js + OpenStreetMap",
+        desc: '<div class="table-wrap"><table><tr><th>레이어</th><th>개수</th><th>표시</th></tr><tr><td>초등학교</td><td>30</td><td>S 마커 (초록)</td></tr><tr><td>중학교</td><td>18</td><td>M 마커 (파랑)</td></tr><tr><td>고등학교</td><td>12</td><td>H 마커 (보라)</td></tr><tr><td>유치원</td><td>42</td><td>K 마커 (노랑)</td></tr><tr><td>사고다발지역</td><td>135</td><td>⚠ 마커</td></tr><tr><td>횡단보도</td><td>1,057</td><td>점 마커 (초등학교앞 <strong>55개 ⚠ DANGER</strong>)</td></tr><tr><td>보호구역</td><td>61</td><td>원 + CCTV 점</td></tr><tr><td>안전등급</td><td>113</td><td>A~F 마커</td></tr></table></div>',
+        cmd: '"초등학교 앞 횡단보도 55개를 DANGER로 표시해줘"',
+        accent: "#ffca3a"
+    },
+    {
+        cat: "SYSTEM", num: "06",
+        title: "GPS 탐지 로직",
+        sub: "checkProximity() — +3m Reset Zone",
+        desc: '<div class="desc-list"><strong>초등학교 주변 100m 이내 횡단보도 55개</strong>는 일반 주의→<strong>DANGER 승격</strong><br><em>초등학교 자체는 알림 대상 아님 (건물이 위험이 아니라 주변 횡단보도가 핵심)</em></div><div class="table-wrap" style="margin-top:12px;"><table><tr><th>구분</th><th>일반 횡단보도</th><th>초등학교앞</th><th>사고다발</th></tr><tr><td>경고(15m)</td><td>🟡 주의</td><td>🔴 <strong>위험+미션</strong></td><td>🔴 위험+미션</td></tr><tr><td>주의(100m)</td><td>🟡 알림</td><td>🔴 알림</td><td>🔴 알림</td></tr></table></div>',
+        cmd: '"경고 범위를 20m로 늘려줘"',
+        accent: "#7eb8ff"
+    },
+    {
+        cat: "MISSION", num: "07",
+        title: "미션 시스템",
+        sub: "4단계 — 매 단계마다 랜덤 방식 지정",
+        desc: '<div class="table-wrap"><table><tr><th>단계</th><th>미션</th><th>가능한 방식</th></tr><tr><td>1/4</td><td>🟢 초록불 확인</td><td>📱 흔들기 / 🎤 <strong>"초록불"</strong></td></tr><tr><td>2/4</td><td>👀 좌우 확인</td><td>📱 흔들기 / 🎤 <strong>"확인 완료"</strong></td></tr><tr><td>3/4</td><td>🔄 회전하며 살피기</td><td>🔄 회전 / 🎤 <strong>"회전했어요"</strong></td></tr><tr><td>4/4</td><td>✅ 건너기 완료</td><td>📱 흔들기 / 🎤 <strong>"다 건넜어요"</strong></td></tr></table></div><div class="desc-list" style="margin-top:12px;">⚠️ iOS Safari: 음성인식 미지원 → 흔들기/회전만 자동 필터링<br>🔊 TTS: 미션 시작/단계/완료 시 음성안내 + 진동 0.5초×5회</div>',
+        cmd: '"미션 시작! 횡단보도에 진입했습니다"',
+        accent: "#ff6b6b"
+    },
+    {
+        cat: "UI", num: "08",
+        title: "설정 & 데이터 업데이트",
+        sub: "사용자 맞춤형 UI",
+        desc: '<div class="desc-list"><strong>아이콘/색상 커스터마이징</strong><br>10개 카테고리별 아이콘 20종 + 색상 16종 팔레트<br>레이어 가시성 on/off, 경고/주의 반경 슬라이더<br><br><strong>데이터 업데이트</strong><br>웹 UI에서 CSV 파일 업로드 (4개 슬롯)<br>python server.py 실행 시 자동 파이프라인 연동<br>모든 설정 localStorage 저장 (재방문 시 유지)</div>',
+        cmd: '"횡단보도 아이콘을 더 눈에 띄게 바꿔줘"',
+        accent: "#48dbfb"
+    },
+    {
+        cat: "DEPLOY", num: "09",
+        title: "PWA 배포",
+        sub: "GitHub Pages + Service Worker",
+        desc: '<div class="desc-list"><strong>https://feelmydream80-sys.github.io/kidssafty/</strong><br><br>HTTPS → GPS/Notification 정상 작동<br>Service Worker → 오프라인 캐싱<br>정적 호스팅 → 서버 불필요<br>데이터 갱신: git push → 자동 재배포 (2~3분)</div><div class="code-box">$ python -m http.server 8000</div>',
+        cmd: '"이 앱을 핸드폰에 설치하고 싶어"',
+        accent: "#ff9f43"
+    },
+    {
+        cat: "MAP", num: "10",
+        title: "지도 화면 — 통합 지도",
+        sub: "Leaflet.js + OpenStreetMap",
+        desc: '<img src="../../screenshots/06_map_only.png" style="width:100%;max-width:700px;border-radius:8px;margin-bottom:12px;border:1px solid rgba(255,255,255,0.1);"><div class="desc-list" style="text-align:left;display:inline-block;"><strong>8종 데이터 레이어</strong> 시각화<br><strong>GPS 실시간 추적</strong> (3초 간격)<br><strong>히트맵</strong>: 위험 밀도 (파랑→노랑→빨강)<br><strong>범례</strong> + 좌/우 분할 레이아웃</div>',
+        cmd: '"이 주변에 어떤 위험 요소가 있나요?"',
+        accent: "#ffca3a"
+    },
+    {
+        cat: "UI", num: "11",
+        title: "사이드바 화면 — 데이터 목록",
+        sub: "학교 & 사고다발지역 테이블",
+        desc: '<img src="../../screenshots/07_sidebar.png" style="width:100%;max-width:400px;border-radius:8px;margin-bottom:12px;border:1px solid rgba(255,255,255,0.1);"><div class="desc-list" style="text-align:left;display:inline-block;"><strong>좌측 35%</strong> 스크롤 테이블<br><strong>학교/유치원</strong>: 113개 (이름·유형·주소)<br><strong>사고다발지역</strong>: 135개 (건수·사상자)<br>hover 하이라이트 + 반응형 분할</div>',
+        cmd: '"근처 초등학교 리스트를 보여줘"',
+        accent: "#48dbfb"
+    },
+    {
+        cat: "UI", num: "12",
+        title: "설정 화면 — 아이콘/색상",
+        sub: "10개 카테고리 커스터마이징",
+        desc: '<img src="../../screenshots/02_settings_panel.png" style="width:100%;max-width:450px;border-radius:8px;margin-bottom:12px;border:1px solid rgba(255,255,255,0.1);"><div class="desc-list" style="text-align:left;display:inline-block;"><strong>모달 패널</strong>: 중앙 정렬 400px<br><strong>10개 카테고리</strong>별 표시/아이콘/색상<br><strong>아이콘</strong> 20종 + <strong>색상</strong> 16종 팔레트<br>visibility on/off + localStorage 저장</div>',
+        cmd: '"초등학교 마커를 별표로 바꿔줘"',
+        accent: "#48dbfb"
+    },
+    {
+        cat: "MISSION", num: "13",
+        title: "미션 화면 — 안전 미션",
+        sub: "4단계 오버레이 패널",
+        desc: '<img src="../../screenshots/03_mission_panel.png" style="width:100%;max-width:400px;border-radius:8px;margin-bottom:12px;border:1px solid rgba(255,255,255,0.1);"><div class="desc-list" style="text-align:left;display:inline-block;"><strong>고정 오버레이</strong>: 상단 중앙<br><strong>🎯 미션 N/4</strong> + 프로그레스 바<br>📱 흔들기 / 🎤 음성인식 / 🔄 회전<br><strong>4단계</strong>: 초록불→좌우→회전→건너기<br>Enter/Space 스킵 + 완료 시 진동</div>',
+        cmd: '"미션 시작! 횡단보도에 진입했습니다"',
+        accent: "#ff6b6b"
+    },
+    {
+        cat: "GOAL", num: "14",
+        title: "성과 및 기대 효과",
+        sub: "공공데이터로 완성하는 아이 안전",
+        desc: '<div class="desc-list" style="text-align:left;display:inline-block;">✅ 5종 공공데이터 통합 → 1,368개 위치정보 (유효좌표 100%)<br>✅ 데이터 파이프라인 자동화 → run_pipeline.py 3초<br>✅ 통합 지도 8종 레이어 + 아이콘/색상 커스터마이징<br>✅ 미션 시스템 4단계 (흔들기/회전/<strong>음성인식 랜덤</strong>)<br>✅ <strong>TTS 음성 출력</strong> + 진동 0.5초×5회<br>✅ <strong>초등학교앞 횡단보도 55개 DANGER 승격</strong><br>✅ PWA → 오프라인 지원, GitHub Pages 배포<br><br><em style="color:rgba(255,255,255,0.5);">등하굣길 위험 지역 사전 인지로 사고 30% 감소 기대</em></div>',
+        cmd: '"지금까지의 성과를 정리해줘"',
+        accent: "#ffd32a"
+    },
+    {
+        cat: "FUTURE", num: "15",
+        title: "향후 발전 계획",
+        sub: "더 넓게, 더 스마트하게",
+        desc: '<div class="desc-list" style="text-align:left;display:inline-block;"><strong>1.</strong> 전국 데이터 확대 — 250개 시군구<br><strong>2.</strong> <strong>iOS 음성 지원</strong> — SFSpeechRecognizer 연동 (현재 iOS 음성인식 미지원)<br><strong>3.</strong> 어린이 친화적 UI — 캐릭터/게임 스타일 지도<br><strong>4.</strong> 안전 미션 확장 + 보상 시스템 (뱃지/콤보)<br><strong>5.</strong> 아바타 시스템 — 지도 위 아바타 표시<br><strong>6.</strong> 뱃지 수집 — 안전 미션 완료 시 획득</div>',
+        cmd: '"다음 업데이트에 iOS 음성인식을 추가해줘"',
+        accent: "#ff6b9d"
+    },
+    {
+        cat: "FINISH", num: "16",
+        title: "공공데이터로 완성하는<br>아이 안전 지킴이",
+        sub: "\"우리 아이들의 안전, 지금은 PWA로 시작합니다!\"",
+        desc: '<div class="desc-list" style="font-size:clamp(12px,1.4vw,16px);"><strong>GitHub Pages</strong><br>https://feelmydream80-sys.github.io/kidssafty/<br><br><strong>통합 데이터</strong> — locations.json (1,368개, 7개 카테고리)<br><strong>데이터 파이프라인</strong> — python run_pipeline.py (3초)<br><strong>전체 소스</strong> — C:/dev/kidssafty/</div>',
+        cmd: '"아이안전지키, 감사합니다!"',
+        accent: "#4fffb0"
+    }
+];
+
+function wrapSlide(s, i) {
+    const catStyle = `color:${s.accent};border-color:${s.accent}33;background:${s.accent}0d`;
+    const dotStyle = `background:${s.accent}`;
+    return `<section class="slide" id="slide-${i}" style="--accent-color:${s.accent}">
+        <div class="card" style="--accent-color:${s.accent}">
+            <div class="bg-number">${s.num}</div>
+            <div class="badge" style="${catStyle}"><span class="badge-dot" style="${dotStyle}"></span>${s.cat}</div>
+            <h2 class="slide-title">${s.title}</h2>
+            <p class="slide-sub">${s.sub}</p>
+            <p class="slide-desc">${s.desc}</p>
+            <div class="cmd-box" style="--accent-color:${s.accent};border-left-color:${s.accent}">
+                <span class="cmd-label">KidsSafe Command</span>
+                <span class="cmd-text" style="color:${s.accent}">${s.cmd}</span>
+            </div>
+        </div>
+    </section>`;
+}
+
+// Render
+const container = document.getElementById('slides');
+slides.forEach((s, i) => { container.innerHTML += wrapSlide(s, i); });
+
+const total = slides.length;
+document.getElementById('tot-num').textContent = total < 10 ? '0' + total : total;
+
+let current = 0;
+const prevBtn = document.getElementById('prev-btn');
+const nextBtn = document.getElementById('next-btn');
+const curNum = document.getElementById('cur-num');
+const catLabel = document.getElementById('cat-label');
+const progBar = document.getElementById('progress-bar');
+
+function goTo(idx) {
+    document.querySelectorAll('.slide').forEach((el, i) => {
+        el.classList.toggle('active', i === idx);
+    });
+    current = idx;
+    prevBtn.disabled = idx === 0;
+    nextBtn.disabled = idx === total - 1;
+    curNum.textContent = (idx + 1) < 10 ? '0' + (idx + 1) : (idx + 1);
+    catLabel.textContent = slides[idx].cat;
+    progBar.style.width = ((idx + 1) / total * 100) + '%';
+}
+
+function prev() { if (current > 0) goTo(current - 1); }
+function next() { if (current < total - 1) goTo(current + 1); }
+
+prevBtn.addEventListener('click', prev);
+nextBtn.addEventListener('click', next);
+document.addEventListener('keydown', e => {
+    if (e.key === 'ArrowLeft') prev();
+    if (e.key === 'ArrowRight') next();
+});
+
+goTo(0);
+</script>
+</body>
+</html>
