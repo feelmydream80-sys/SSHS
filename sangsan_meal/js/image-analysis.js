@@ -799,6 +799,8 @@ async function ianalyze() {
     formData.append('soup_food', soupFood);
   }
 
+  if (!window._ianalyzeRetry) window._ianalyzeRetry = 0;
+
   let resp = null;
   try {
     resp = await fetch('/api/analyze', {
@@ -806,6 +808,8 @@ async function ianalyze() {
       body: formData
     });
     const result = await resp.json();
+
+    window._ianalyzeRetry = 0;
 
     if (result.error) {
       done.innerHTML = `<div class="empty">⚠️ ${result.error}</div>`;
@@ -818,18 +822,29 @@ async function ianalyze() {
     if (recalcBtn) recalcBtn.style.display = iDetectedRegions.length > 0 ? 'inline-block' : 'none';
     loadHistory();
   } catch (e) {
-    let detail = `<div class="empty">⚠️ 분석 요청 실패: ${e.message}`;
-    if (resp) {
-      detail += `<br><small style="opacity:.6">HTTP ${resp.status} ${resp.statusText}</small>`;
+    window._ianalyzeRetry++;
+    const isTimeout = !resp || resp.status === 502 || resp.status === 504;
+    const delay = isTimeout ? Math.min(3000 * window._ianalyzeRetry, 15000) : 10000;
+    let detail = `<div class="empty">⚠️ 분석 요청 실패`;
+
+    if (isTimeout) {
+      detail += `: 서버가 아직 준비 중입니다 (cold start).<br><small style="opacity:.6">`;
+      if (resp) detail += `HTTP ${resp.status} `;
+      detail += `(${window._ianalyzeRetry}번째 재시도, ${Math.round(delay/1000)}초 후...)`;
+    } else {
+      detail += `: ${e.message}<br><small style="opacity:.6">`;
+      if (resp) detail += `HTTP ${resp.status} `;
+    }
+    detail += `</small></div>`;
+    done.innerHTML = detail;
+
+    if (resp && !isTimeout) {
       resp.text().then(text => {
         if (text) console.error('[analyze] 응답 본문:', text.substring(0, 500));
       }).catch(() => {});
-    } else {
-      detail += `<br><small style="opacity:.6">서버에 연결할 수 없습니다 (Render cold start일 수 있음)</small>`;
     }
-    detail += `<br><small style="opacity:.6;display:block;margin-top:8px">🔁 10초 후 자동 재시도</small></div>`;
-    done.innerHTML = detail;
-    setTimeout(() => { if (!btn.disabled) ianalyze(); }, 10000);
+
+    setTimeout(() => { if (!btn.disabled) ianalyze(); }, delay);
   } finally {
     btn.disabled = false;
     btn.textContent = '🔬 이미지 분석 시작';

@@ -16,20 +16,6 @@ import requests
 
 from analyzer import MealAnalyzer
 
-
-REQUEST_TIMEOUT = 28
-
-
-class TimeoutError(Exception):
-    pass
-
-
-def check_remaining(t0, phase):
-    elapsed = time.time() - t0
-    if elapsed >= REQUEST_TIMEOUT:
-        raise TimeoutError(f"'{phase}' 단계 시간 초과 (elapsed: {elapsed:.1f}s >= {REQUEST_TIMEOUT}s)")
-    return elapsed
-
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger(__name__)
 
@@ -40,7 +26,7 @@ with open("config.json", "r", encoding="utf-8") as f:
     config = json.load(f)
 
 analyzer = MealAnalyzer("config.json")
-# 모델은 lazy 로딩 (첫 분석 요청 시 로드)
+analyzer._load_model()
 import torch
 torch.set_num_threads(1)
 
@@ -134,15 +120,7 @@ def api_analyze():
 
     try:
         _resize_image(image_path)
-        check_remaining(t_start, "resize")
         logger.info("[analyze] 이미지 리사이즈 완료")
-
-        # lazy 모델 로딩
-        if analyzer.model is None:
-            logger.info("[analyze] 모델 lazy 로딩 시작")
-            analyzer._load_model()
-            logger.info("[analyze] 모델 로딩 완료")
-        check_remaining(t_start, "model_load")
 
         if use_regions == "true":
             regions_json = request.form.get("regions", "[]")
@@ -157,7 +135,6 @@ def api_analyze():
             tray_foods = json.loads(menu_json)
             logger.info(f"[analyze] analyze 시작 (메뉴: {tray_foods})")
             result = analyzer.analyze(image_path, tray_foods, soup_food)
-        check_remaining(t_start, "analyze")
         logger.info(f"[analyze] 분석 완료 (elapsed: {time.time() - t_start:.2f}s)")
 
         if use_regions == "true":
@@ -231,12 +208,7 @@ def api_analyze_url():
         return jsonify({"error": f"이미지 다운로드 실패: {str(e)}"}), 400
 
     try:
-        if analyzer.model is None:
-            logger.info("[analyze-url] 모델 lazy 로딩 시작")
-            analyzer._load_model()
-        check_remaining(t_start, "model_load")
         result = analyzer.analyze(image_path, tray_foods, soup_food)
-        check_remaining(t_start, "analyze")
         logger.info(f"[analyze-url] 분석 완료 (elapsed: {time.time() - t_start:.2f}s)")
 
         record = {
