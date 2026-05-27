@@ -242,7 +242,7 @@ def api_proxy_opencode_ai():
     }
     url = "https://opencode.ai/zen/v1/chat/completions"
     try:
-        resp = requests.post(url, headers=headers, json=data, timeout=30)
+        resp = requests.post(url, headers=headers, json=data, timeout=120)
         try:
             return jsonify(resp.json())
         except Exception:
@@ -372,7 +372,34 @@ def api_diagnose():
         diag["numpy"] = np.__version__
     except Exception as e:
         diag["numpy_error"] = str(e)
+    try:
+        import psutil
+        diag["memory_mb"] = psutil.virtual_memory().total // (1024 * 1024)
+        diag["memory_avail_mb"] = psutil.virtual_memory().available // (1024 * 1024)
+    except:
+        pass
     return jsonify(diag)
+
+
+@app.route("/api/test-yolo", methods=["GET"])
+def api_test_yolo():
+    import time, numpy as np, cv2
+    try:
+        dummy = np.ones((analyzer.imgsz, analyzer.imgsz, 3), dtype=np.uint8) * 128
+        t0 = time.time()
+        results = analyzer.model(dummy, conf=analyzer.conf_threshold, imgsz=analyzer.imgsz, verbose=False)
+        t1 = time.time()
+        masks = results[0].masks
+        boxes = results[0].boxes
+        return jsonify({
+            "success": True,
+            "inference_time_s": round(t1 - t0, 3),
+            "num_masks": len(masks.data) if masks else 0,
+            "num_boxes": len(boxes) if boxes else 0,
+            "classes": [int(c) for c in boxes.cls.cpu().numpy()] if boxes is not None and len(boxes) > 0 else [],
+        })
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
 
 
 @app.route("/<path:path>")
