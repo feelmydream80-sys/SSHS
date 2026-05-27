@@ -766,7 +766,7 @@ ${ns}
     if (_aiModel === 'deepseek') {
       url = '/api/proxy/opencode-ai';
       headers = { 'Content-Type': 'application/json' };
-      body = { model: 'deepseek-v4-flash-free', messages: [{ role: 'user', content: prompt }], max_tokens: 4096 };
+      body = { model: 'deepseek-v4-flash-free', messages: [{ role: 'user', content: prompt }], max_tokens: 8192 };
     } else {
       url = `https://generativelanguage.googleapis.com/v1/models/gemini-2.0-flash:generateContent?key=${GK}`;
       headers = { 'Content-Type': 'application/json' };

@@ -251,8 +251,12 @@ def api_proxy_opencode_ai():
     url = "https://opencode.ai/zen/v1/chat/completions"
     try:
         resp = requests.post(url, headers=headers, json=data, timeout=30)
-        return jsonify(resp.json())
+        try:
+            return jsonify(resp.json())
+        except Exception:
+            return jsonify({"error": f"upstream {resp.status_code}: {resp.text[:200]}", "raw": resp.text[:500]}), 502
     except requests.exceptions.RequestException as e:
+        print(f"[proxy error] {e}")
         return jsonify({"error": str(e)}), 502
 
 
@@ -346,6 +350,36 @@ def api_proxy_food_nutri():
 @app.route("/api/health", methods=["GET"])
 def api_health():
     return jsonify({"status": "ok", "time": datetime.now().isoformat()})
+
+
+@app.route("/api/diagnose", methods=["GET"])
+def api_diagnose():
+    import sys
+    diag = {
+        "status": "ok",
+        "python": sys.version,
+        "time": datetime.now().isoformat(),
+        "model_loaded": analyzer.model is not None,
+        "config_exists": os.path.exists("config.json"),
+        "model_file_exists": os.path.exists(analyzer.yolo_path),
+    }
+    try:
+        import cv2
+        diag["cv2"] = cv2.__version__
+    except Exception as e:
+        diag["cv2_error"] = str(e)
+    try:
+        import torch
+        diag["torch"] = torch.__version__
+        diag["torch_cuda"] = torch.cuda.is_available()
+    except Exception as e:
+        diag["torch_error"] = str(e)
+    try:
+        import numpy as np
+        diag["numpy"] = np.__version__
+    except Exception as e:
+        diag["numpy_error"] = str(e)
+    return jsonify(diag)
 
 
 if __name__ == "__main__":
