@@ -40,7 +40,8 @@ self.addEventListener('fetch', e => {
     url.hostname.includes('corsproxy.io') ||
     url.hostname.includes('codetabs.com') ||
     url.hostname.includes('anthropic.com') ||
-    url.hostname.includes('googleapis.com');
+    url.hostname.includes('googleapis.com') ||
+    url.hostname.includes('deepseek.com');
 
   if (isExternal) return; /* SW 개입 없이 브라우저가 직접 처리 */
 

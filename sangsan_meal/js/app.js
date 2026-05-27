@@ -92,7 +92,8 @@ function debounce(fn, delay) {
 
 const DEFAULT_NEIS_KEY = '35b75a10a2fe426b8aa1b072ab2be207';
 const DEFAULT_GEMINI_KEY = 'AIzaSyBHinJjUFWIv2z9QA39rl8ONM4rAIfjqOQ';
-let NK = '', GK = '', MA = [], SY = 2025, SM = 4, CHARTS = {};
+const DEFAULT_DEEPSEEK_KEY = 'sk-omLs4GxwcqzeobbhlCPyhjSqSYKbAp88j8nzxmXFnM9w40wF5SOrFGKpKjFQ67pw';
+let NK = '', GK = '', MA = [], SY = 2025, SM = 4, CHARTS = {}, _aiModel = 'gemini';
 
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
@@ -107,6 +108,7 @@ window.onload = async () => {
   GK = localStorage.getItem('gemini_key') || DEFAULT_GEMINI_KEY;
   MA = JSON.parse(localStorage.getItem('my_allergies') || '[]');
   _childProfile = loadProfile();
+  _aiModel = localStorage.getItem('ai_model') || 'gemini';
   const savedSchool = localStorage.getItem('selected_school');
   if (savedSchool) currentSchool = JSON.parse(savedSchool);
   if (!localStorage.getItem('neis_key')) localStorage.setItem('neis_key', NK);
@@ -565,7 +567,8 @@ async function loadStats() {
 </div>
 
 <div class="ai-card" id="aiCardStats">
-  <div class="ai-header"><div class="ai-icon">✦</div><div><div style="font-size:14px;font-weight:700">AI 학부모 인사이트</div><div style="font-size:11px;color:var(--muted)">이번 달 급식 데이터 기반 맞춤 조언</div></div></div>
+  <div class="ai-header"><div class="ai-icon">✦</div><div><div style="font-size:14px;font-weight:700">AI 학부모 인사이트</div><div style="font-size:11px;color:var(--muted)">이번 달 급식 데이터 기반 맞춤 인사이트</div></div></div>
+  ${renderModelBar()}
   <div class="ai-content" id="aic" style="color:var(--muted);font-style:italic">${GK ? 'AI 분석 버튼을 눌러 학부모용 인사이트를 받아보세요.' : '설정에서 Gemini API 키를 입력하면 AI 분석을 사용할 수 있습니다.'}</div>
 </div>`;
 
@@ -649,6 +652,21 @@ function cOpts() {
       y: { ticks: { color: 'rgba(255,255,255,.4)', font: { family: 'Space Mono', size: 9 } }, grid: { color: 'rgba(255,255,255,.05)' } }
     }
   };
+}
+
+function switchAIModel(model) {
+  _aiModel = model;
+  localStorage.setItem('ai_model', model);
+  document.querySelectorAll('.ai-model-btn').forEach(b => b.classList.toggle('on', b.dataset.model === model));
+  const period = _reportPeriod || 'week';
+  const d = _dataSource === 'weekly' ? window._weeklyData : (_dataSource === 'monthly' ? window._monthlyData : window._AD);
+  if (d) {
+    const c = document.getElementById(_dataSource === 'stats' ? 'aic' : 'wai');
+    const btn = document.getElementById(_dataSource === 'stats' ? 'aib' : 'wab');
+    if (c) { c.style.fontStyle = 'italic'; c.style.color = 'var(--muted)'; c.textContent = 'AI가 데이터를 분석하고 있습니다...'; }
+    if (btn) btn.textContent = '생성 중...';
+    getAIReport();
+  }
 }
 
 async function getAIReport() {
@@ -745,13 +763,21 @@ ${ns}
 전문용어 없이 실천 가능한 조언으로 작성해주세요.`;
 
   try {
-    const res = await fetch(`https://generativelanguage.googleapis.com/v1/models/gemini-2.0-flash:generateContent?key=${GK}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ contents: [{ role: 'user', parts: [{ text: prompt }] }], generationConfig: { maxOutputTokens: 900, temperature: 0.7 } })
-    });
+    let url, headers, body;
+    if (_aiModel === 'deepseek') {
+      url = 'https://api.deepseek.com/v1/chat/completions';
+      headers = { 'Content-Type': 'application/json', 'Authorization': `Bearer ${DEFAULT_DEEPSEEK_KEY}` };
+      body = { model: 'deepseek-chat', messages: [{ role: 'user', content: prompt }], max_tokens: 900 };
+    } else {
+      url = `https://generativelanguage.googleapis.com/v1/models/gemini-2.0-flash:generateContent?key=${GK}`;
+      headers = { 'Content-Type': 'application/json' };
+      body = { contents: [{ role: 'user', parts: [{ text: prompt }] }], generationConfig: { maxOutputTokens: 900 } };
+    }
+    const res = await fetch(url, { method: 'POST', headers, body: JSON.stringify(body) });
     const j = await res.json();
-    const t = j.candidates?.[0]?.content?.parts?.[0]?.text || '분석 결과를 받지 못했습니다.';
+    const t = _aiModel === 'deepseek'
+      ? (j.choices?.[0]?.message?.content || '분석 결과를 받지 못했습니다.')
+      : (j.candidates?.[0]?.content?.parts?.[0]?.text || '분석 결과를 받지 못했습니다.');
     c.style.fontStyle = 'normal';
     c.style.color = 'rgba(255,255,255,.8)';
     c.textContent = t;
@@ -771,6 +797,10 @@ ${ns}
       btn.textContent = '✦ 다시 시도';
     }
   }
+}
+
+function renderModelBar() {
+  return `<div class="ai-model-bar"><button class="ai-model-btn${_aiModel === 'gemini' ? ' on' : ''}" data-model="gemini" onclick="switchAIModel('gemini')">Gemini 2.0</button><button class="ai-model-btn${_aiModel === 'deepseek' ? ' on' : ''}" data-model="deepseek" onclick="switchAIModel('deepseek')">DeepSeek V4</button></div>`;
 }
 
 function renderAG() {
@@ -1000,6 +1030,7 @@ async function loadMonthlyReport() {
 
 <div class="ai-card">
   <div class="ai-header"><div class="ai-icon">✦</div><div><div style="font-size:14px;font-weight:700">AI 월간 조언</div><div style="font-size:11px;color:var(--muted)">이번 달 급식 데이터 기반 맞춤 인사이트</div></div></div>
+  ${renderModelBar()}
   ${aiContent}
 </div>`;
 
@@ -1082,6 +1113,7 @@ async function loadWeeklyReport() {
 
 <div class="ai-card">
   <div class="ai-header"><div class="ai-icon">✦</div><div><div style="font-size:14px;font-weight:700">AI 주간 조언</div><div style="font-size:11px;color:var(--muted)">이번 주 급식 데이터 기반 맞춤 인사이트</div></div></div>
+  ${renderModelBar()}
   ${aiContent}
 </div>`;
 
