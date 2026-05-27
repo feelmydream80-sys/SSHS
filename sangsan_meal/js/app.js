@@ -49,7 +49,7 @@ function getMealRec(key, mealName) { return DRI[key].rec * (MEAL_RATIO[mealName]
 const MC = { '조식': '#ff9f43', '중식': '#4fffb0', '석식': '#7eb8ff' };
 const PALETTE = ['#4fffb0', '#7eb8ff', '#ffd60a', '#ff6b6b', '#ff9f43', '#c77dff', '#ff6b9d', '#48dbfb'];
 
-let db = null;
+let db = null; let _reportPeriod = 'week'; let _childProfile = null; _imageData = null; let _dataSource = 'weekly';
 const DB_NAME = 'sangsan-meal-cache', DB_VERSION = 1, STORE_NAME = 'meals';
 function openDB() {
   return new Promise((resolve, reject) => {
@@ -91,7 +91,8 @@ function debounce(fn, delay) {
 }
 
 const DEFAULT_NEIS_KEY = '35b75a10a2fe426b8aa1b072ab2be207';
-let NK = '', CK = '', MA = [], SY = 2025, SM = 4, CHARTS = {};
+const DEFAULT_GEMINI_KEY = 'AIzaSyBHinJjUFWIv2z9QA39rl8ONM4rAIfjqOQ';
+let NK = '', GK = '', MA = [], SY = 2025, SM = 4, CHARTS = {};
 
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
@@ -103,8 +104,9 @@ if ('serviceWorker' in navigator) {
 
 window.onload = async () => {
   NK = localStorage.getItem('neis_key') || DEFAULT_NEIS_KEY;
-  CK = localStorage.getItem('claude_key') || '';
+  GK = localStorage.getItem('gemini_key') || DEFAULT_GEMINI_KEY;
   MA = JSON.parse(localStorage.getItem('my_allergies') || '[]');
+  _childProfile = loadProfile();
   const savedSchool = localStorage.getItem('selected_school');
   if (savedSchool) currentSchool = JSON.parse(savedSchool);
   if (!localStorage.getItem('neis_key')) localStorage.setItem('neis_key', NK);
@@ -126,14 +128,14 @@ window.onload = async () => {
 
 function showModal() {
   document.getElementById('ni').value = NK;
-  document.getElementById('ci').value = CK;
+  document.getElementById('gi').value = GK;
   document.getElementById('currentSchoolName').textContent = currentSchool.NAME;
   document.getElementById('modal').style.display = 'flex';
 }
 function saveKeys() {
-  const nk = document.getElementById('ni').value.trim(), ck = document.getElementById('ci').value.trim();
+  const nk = document.getElementById('ni').value.trim(), gk = document.getElementById('gi').value.trim();
   if (!nk) { alert('NEIS API 키를 입력해주세요.'); return; }
-  NK = nk; CK = ck; localStorage.setItem('neis_key', nk); localStorage.setItem('claude_key', ck);
+  NK = nk; GK = gk; localStorage.setItem('neis_key', nk); localStorage.setItem('gemini_key', gk);
   document.getElementById('modal').style.display = 'none';
   loadToday(); renderAG();
 }
@@ -564,7 +566,7 @@ async function loadStats() {
 
 <div class="ai-card" id="aiCardStats">
   <div class="ai-header"><div class="ai-icon">✦</div><div><div style="font-size:14px;font-weight:700">AI 학부모 인사이트</div><div style="font-size:11px;color:var(--muted)">이번 달 급식 데이터 기반 맞춤 조언</div></div></div>
-  <div class="ai-content" id="aic" style="color:var(--muted);font-style:italic">${CK ? 'AI 분석 버튼을 눌러 학부모용 인사이트를 받아보세요.' : '설정에서 Claude API 키를 입력하면 AI 분석을 사용할 수 있습니다.'}</div>
+  <div class="ai-content" id="aic" style="color:var(--muted);font-style:italic">${GK ? 'AI 분석 버튼을 눌러 학부모용 인사이트를 받아보세요.' : '설정에서 Gemini API 키를 입력하면 AI 분석을 사용할 수 있습니다.'}</div>
 </div>`;
 
     CHARTS.cal = new Chart(document.getElementById('cc'), {
@@ -613,7 +615,8 @@ async function loadStats() {
       options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right', labels: { color: 'rgba(255,255,255,.6)', font: { family: 'Noto Sans KR', size: 11 }, padding: 12, boxWidth: 14 }, tooltip: { callbacks: { label: c => `${c.label}: ${c.parsed}회` } } }, cutout: '65%' } }
     });
 
-    window._AD = { ntrAvgs, ntrOver, ntrLow, avgCal, dates, ac };
+    window._AD = { ntrAvgs, ntrOver, ntrLow, avgCal, dates, ac, monthLabel: `${SY}년 ${SM}월` };
+    _dataSource = 'stats'; _reportPeriod = 'month';
     document.getElementById('slb').disabled = true;
     document.getElementById('slb').style.opacity = '0.4';
     document.getElementById('slb').textContent = '① 분석 완료';
@@ -648,29 +651,126 @@ function cOpts() {
   };
 }
 
-async function getAI() {
-  const d = window._AD; if (!d) return;
-  const btn = document.getElementById('aib'), c = document.getElementById('aic');
-  btn.disabled = true; btn.textContent = 'AI 분석 중...'; btn.style.background = 'var(--surface)';
-  c.style.fontStyle = 'italic'; c.style.color = 'var(--muted)'; c.textContent = 'AI가 이번 달 급식 데이터를 분석하고 있습니다...';
-  const ns = Object.entries(DRI).map(([k, i]) => {
-    const avg = d.ntrAvgs[k], rt = Math.round(avg / i.rec * 100);
-    return `${k.replace(/\(.*?\)/, '')}: 평균${avg}(권장${i.rec},${rt}%), 부족${d.ntrLow[k]}일, 과잉${d.ntrOver[k]}일`;
+async function getAIReport() {
+  const isStatsContext = _dataSource === 'stats';
+  const d = isStatsContext ? window._AD : (_dataSource === 'weekly' ? window._weeklyData : window._monthlyData);
+  if (!d) return;
+  const isWeekly = _dataSource === 'weekly';
+  const period = _reportPeriod || 'week';
+  const btnId = isStatsContext ? 'aib' : 'wab';
+  const contentId = isStatsContext ? 'aic' : 'wai';
+  const btn = document.getElementById(btnId);
+  const c = document.getElementById(contentId);
+  if (!btn || !c) return;
+
+  btn.disabled = true;
+  if (isStatsContext) {
+    btn.textContent = 'AI 분석 중...';
+    btn.style.background = 'var(--surface)';
+    c.style.fontStyle = 'italic';
+    c.style.color = 'var(--muted)';
+    c.textContent = 'AI가 데이터를 분석하고 있습니다...';
+  } else {
+    btn.textContent = '생성 중...';
+    c.style.fontStyle = 'italic';
+    c.style.color = 'var(--muted)';
+    c.textContent = 'AI가 데이터를 분석하고 있습니다...';
+  }
+
+  const pDRI = getPersonalizedDRI(_childProfile);
+  const useDRI = pDRI === DRI ? DRI : pDRI;
+  const ns = Object.entries(useDRI).filter(([k]) => k !== '권장칼로리').map(([k, i]) => {
+    const actualAvg = d.ntrAvgs[k] || 0;
+    const rt = i.rec ? Math.round(actualAvg / i.rec * 100) : 0;
+    return `${k.replace(/\(.*?\)/, '')}: 평균${actualAvg}(권장${i.rec},${rt}%), 부족${d.ntrLow[k] || 0}일, 과잉${d.ntrOver[k] || 0}일`;
   }).join('\n');
-  const ta = Object.entries(d.ac).sort((a, b) => b[1] - a[1]).slice(0, 5).map(([n, c]) => `${AM[n] || n + '번'}:${c}회`).join(',');
-  const prompt = `상산고등학교 이번 달 급식 영양 분석입니다.\n\n[영양소]\n${ns}\n[평균칼로리]${d.avgCal}Kcal(${d.dates.length}일)\n[자주 등장 알레르기]${ta}\n\n학부모에게 다음 3가지를 친근하게 알려주세요:\n1. 부족한 영양소와 집에서 보완할 구체적 식품(2~3가지)\n2. 주의할 영양 패턴\n3. 전반적 평가 한 줄 요약\n전문용어 없이 실천 가능한 조언으로.`;
+
+  const ta = Object.entries(d.ac).sort((a, b) => b[1] - a[1]).slice(0, 5).map(([n, c]) => `${AM[n] || n}:${c}회`).join(',');
+  const userAllergies = MA.map(n => AM[n]).filter(Boolean).join(', ') || '없음';
+  const warningAllergies = Object.entries(d.ac).filter(([n]) => MA.includes(Number(n))).sort((a, b) => b[1] - a[1]).map(([n, c]) => `${AM[n] || n}:${c}회`).join(', ') || '없음';
+
+  const periodKo = isWeekly ? '이번 주' : '이번 달';
+  const periodLabel = isWeekly ? '주간' : '월간';
+  const dateRange = isWeekly ? (d.weekLabel || '') : (d.monthLabel || `${SY}년 ${SM}월`);
+  const daysInfo = `${d.dates.length}일`;
+
+  const imageData = window._imageData;
+  let imageInsightText = '';
+  if (imageData && imageData.imageCount > 0) {
+    const diff = imageData.avgImageKcal - imageData.avgNEISKcal;
+    const trendMsg = diff > 0
+      ? `NEIS 대비 평균 ${diff}Kcal 높게 측정되어 실제 섭취량이 제공량보다 많을 수 있습니다.`
+      : diff < 0
+        ? `NEIS 대비 평균 ${Math.abs(diff)}Kcal 낮게 측정되어 실제 섭취량이 제공량보다 적을 수 있습니다.`
+        : 'NEIS 제공 칼로리와 유사하게 측정되어 적정 섭취 중입니다.';
+    imageInsightText = `\n\n[이미지 분석 기반 실제 식사량]\n- 이미지 분석 ${imageData.imageCount}회\n- 분석 평균 칼로리: ${imageData.avgImageKcal}Kcal\n- NEIS 제공 평균 칼로리: ${imageData.avgNEISKcal}Kcal\n- 1회 평균 예상 무게: ${imageData.avgWeight}g\n- 식사량 평가: ${trendMsg}`;
+  }
+
+  const profile = _childProfile;
+  let profileText = '';
+  let healthLabel = '';
+  if (profile && profile.height && profile.weight) {
+    const bmi = (profile.weight / Math.pow(profile.height / 100, 2)).toFixed(1);
+    let bmiLabel = '';
+    if (bmi >= 25) bmiLabel = '과체중';
+    else if (bmi >= 23) bmiLabel = '과체중 위험';
+    else if (bmi < 18.5) bmiLabel = '저체중';
+    else bmiLabel = '정상';
+    healthLabel = getHealthLabel(profile.health) || '정보 없음';
+    const genderLabel = profile.gender === 'male' ? '남' : profile.gender === 'female' ? '여' : '미지정';
+    profileText = `\n\n[자녀 정보]\n- 키: ${profile.height}cm / 몸무게: ${profile.weight}kg / 성별: ${genderLabel}\n- BMI: ${bmi} (${bmiLabel})\n- 건강 상태: ${healthLabel}${profile.note ? '\n- 추가: ' + profile.note : ''}`;
+  }
+
+  const calInsight = profile ? `\n- 개인 권장 칼로리: ${useDRI['권장칼로리']?.rec || '정보없음'}Kcal (일반 2600Kcal 대비)` : '';
+
+  const prompt = `상산고등학교 ${periodKo}(${dateRange}) 급식 분석 결과입니다.${profileText}
+
+[영양소 분석]
+${ns}
+[식사량 분석]
+- 평균 칼로리: ${d.avgCal}Kcal (${daysInfo})${calInsight}
+
+[알레르기 정보]
+- 사용자 설정 알레르기: ${userAllergies}
+- 급식 내 자주 등장 알레르기: ${ta}
+- 주의 알레르기 노출: ${warningAllergies}${imageInsightText}
+
+학부모에게 다음 5가지를 친근하고 실천 가능한 조언으로 알려주세요:
+1. 🥗 ${periodKo} 부족한 영양소와 집에서 보완할 구체적 식품 (2~3가지)
+2. ⚠️ 알레르기 관련 주의사항 (특히 사용자 알레르기 식품 노출 빈도 강조)
+3. 🍽️ 식사량 패턴 인사이트 (과식/부족 여부 및 개선 방법)
+4. 📊 자녀 건강 상태${profile ? '(' + healthLabel + ')' : ''} 기반 맞춤 조언
+5. ✅ ${periodKo} 총평
+
+전문용어 없이 실천 가능한 조언으로 작성해주세요.`;
+
   try {
-    const res = await fetch('https://api.anthropic.com/v1/messages', {
+    const res = await fetch(`https://generativelanguage.googleapis.com/v1/models/gemini-2.0-flash:generateContent?key=${GK}`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-api-key': CK, 'anthropic-version': '2023-06-01' },
-      body: JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: 700, messages: [{ role: 'user', content: prompt }] })
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ contents: [{ role: 'user', parts: [{ text: prompt }] }], generationConfig: { maxOutputTokens: 900, temperature: 0.7 } })
     });
     const j = await res.json();
-    const t = j.content?.[0]?.text || '분석 결과를 받지 못했습니다.';
-    c.style.fontStyle = 'normal'; c.style.color = 'rgba(255,255,255,.8)'; c.textContent = t;
-    btn.textContent = '② AI 완료';
+    const t = j.candidates?.[0]?.content?.parts?.[0]?.text || '분석 결과를 받지 못했습니다.';
+    c.style.fontStyle = 'normal';
+    c.style.color = 'rgba(255,255,255,.8)';
+    c.textContent = t;
+    if (isStatsContext) {
+      btn.textContent = '② AI 완료';
+    } else {
+      btn.textContent = '✓ 완료';
+    }
     btn.disabled = true;
-  } catch (e) { c.textContent = '오류: ' + e.message; btn.disabled = false; btn.textContent = '② 다시 시도'; btn.style.background = 'var(--green)'; }
+  } catch (e) {
+    c.textContent = '오류: ' + e.message;
+    btn.disabled = false;
+    if (isStatsContext) {
+      btn.textContent = '② 다시 시도';
+      btn.style.background = 'var(--green)';
+    } else {
+      btn.textContent = '✦ 다시 시도';
+    }
+  }
 }
 
 function renderAG() {
@@ -685,11 +785,93 @@ function tgA(n, el) {
   loadToday();
 }
 
+function loadProfile() {
+  try { return JSON.parse(localStorage.getItem('child_profile')); } catch { return null; }
+}
+function showProfileModal() {
+  const p = _childProfile || {};
+  document.getElementById('pi-height').value = p.height || '';
+  document.getElementById('pi-weight').value = p.weight || '';
+  document.getElementById('pi-birth').value = p.birth || '';
+  document.getElementById('pi-gender').value = p.gender || '';
+  document.getElementById('pi-health').value = p.health || '';
+  document.getElementById('pi-note').value = p.note || '';
+  document.getElementById('profileModal').style.display = 'flex';
+}
+function closeProfileModal() {
+  document.getElementById('profileModal').style.display = 'none';
+}
+function saveProfile() {
+  const p = {
+    height: parseFloat(document.getElementById('pi-height').value) || 0,
+    weight: parseFloat(document.getElementById('pi-weight').value) || 0,
+    birth: document.getElementById('pi-birth').value,
+    gender: document.getElementById('pi-gender').value,
+    health: document.getElementById('pi-health').value,
+    note: document.getElementById('pi-note').value.trim()
+  };
+  localStorage.setItem('child_profile', JSON.stringify(p));
+  _childProfile = p;
+  closeProfileModal();
+  renderProfileSummary();
+  if (window._weeklyData || window._monthlyData || window._AD) {
+    getAIReport();
+  }
+}
+function renderProfileSummary() {
+  const el = document.getElementById('profile-summary');
+  if (!el) return;
+  const p = _childProfile;
+  if (!p || !p.height || !p.weight) {
+    el.innerHTML = '정보를 입력하면 맞춤형 조언을 제공합니다.';
+    return;
+  }
+  const bmi = (p.weight / Math.pow(p.height / 100, 2)).toFixed(1);
+  const healthLabels = {
+    healthy: '건강함', average: '보통', weak: '허약', obese: '비만',
+    digestive: '소화기 약함', athlete: '운동선수',
+    allergy_rhinitis: '알레르기 비염', atopy: '아토피', diabetes: '당뇨', other: '기타'
+  };
+  const hl = healthLabels[p.health] || '';
+  el.innerHTML = `키 ${p.height}cm · 몸무게 ${p.weight}kg · BMI ${bmi}${hl ? ' · ' + hl : ''}${p.note ? '<br><span style="opacity:.6">📌 ' + p.note + '</span>' : ''}`;
+}
+function getHealthLabel(code) {
+  const labels = {
+    healthy: '건강함', average: '보통', weak: '허약', obese: '비만',
+    digestive: '소화기 약함', athlete: '운동선수',
+    allergy_rhinitis: '알레르기 비염', atopy: '아토피', diabetes: '당뇨', other: '기타'
+  };
+  return labels[code] || '';
+}
+function getPersonalizedDRI(profile) {
+  if (!profile || !profile.height || !profile.weight) return DRI;
+  const bmi = profile.weight / Math.pow(profile.height / 100, 2);
+  const isMale = profile.gender === 'male';
+  let calPerKg = isMale ? 35 : 30;
+  if (profile.health === 'athlete') calPerKg *= 1.2;
+  else if (profile.health === 'obese') calPerKg *= 0.85;
+  const recCal = Math.round(calPerKg * profile.weight);
+  return {
+    '탄수화물(g)': { ...DRI['탄수화물(g)'], rec: Math.round(recCal * 0.55 / 4) },
+    '단백질(g)': { ...DRI['단백질(g)'], rec: Math.round(profile.weight * (profile.health === 'athlete' ? 1.5 : 1.0)) },
+    '지방(g)': { ...DRI['지방(g)'], rec: Math.round(recCal * 0.25 / 9) },
+    '칼슘(mg)': DRI['칼슘(mg)'],
+    '철분(mg)': DRI['철분(mg)'],
+    '비타민C(mg)': DRI['비타민C(mg)'],
+    '권장칼로리': { rec: recCal }
+  };
+}
+
 function sw(name, btn) {
   document.querySelectorAll('.tab').forEach(t => t.classList.remove('on')); btn.classList.add('on');
   ['today', 'stats', 'allergy', 'report', 'image'].forEach(t => document.getElementById(`tab-${t}`).style.display = t === name ? 'block' : 'none');
   if (name === 'stats') loadMonthlyStats();
-  if (name === 'report') loadWeeklyReport();
+  if (name === 'report') {
+    renderProfileSummary();
+    _reportPeriod = 'week';
+    document.querySelectorAll('.period-btn').forEach(b => b.classList.toggle('on', b.dataset.period === 'week'));
+    loadWeeklyReport();
+  }
 }
 
 function getWeekRange() {
@@ -706,6 +888,123 @@ function getWeekRange() {
 function getWeekLabel(mon, sun) {
   const fmt = d => `${d.getMonth() + 1}/${d.getDate()}`;
   return `${fmt(mon)} ~ ${fmt(sun)}`;
+}
+
+function swReport(period, btn) {
+  document.querySelectorAll('.period-btn').forEach(b => b.classList.remove('on'));
+  btn.classList.add('on');
+  _reportPeriod = period;
+  if (period === 'week') loadWeeklyReport();
+  else loadMonthlyReport();
+}
+
+async function fetchImageAnalysis(from, to) {
+  try {
+    const resp = await fetch('/api/results');
+    if (!resp.ok) return null;
+    const results = await resp.json();
+    const filtered = results.filter(r => r.date >= from && r.date <= to && r.result);
+    if (!filtered.length) return null;
+    const totalKcal = filtered.reduce((s, r) => s + (r.result.total_kcal || 0), 0);
+    let neisTotal = 0;
+    filtered.forEach(r => {
+      const cal = parseFloat(r.menu?.calories || 0);
+      neisTotal += cal;
+    });
+    const totalWeight = filtered.reduce((s, r) => {
+      return s + (r.result.sections || []).reduce((ss, sec) => ss + (sec.estimated_weight_g || 0), 0);
+    }, 0);
+    return {
+      imageCount: filtered.length,
+      avgImageKcal: Math.round(totalKcal / filtered.length),
+      avgNEISKcal: Math.round(neisTotal / filtered.length),
+      avgWeight: Math.round(totalWeight / filtered.length)
+    };
+  } catch { return null; }
+}
+
+async function loadMonthlyReport() {
+  const box = document.getElementById('report-box');
+  box.innerHTML = '<div class="loading-wrap"><div class="spinner"></div><div style="color:var(--muted);font-size:13px">이번 달 급식 데이터를 불러오는 중...</div></div>';
+  try {
+    const from = `${SY}${String(SM).padStart(2, '0')}01`;
+    const last = new Date(SY, SM, 0).getDate();
+    const to = `${SY}${String(SM).padStart(2, '0')}${last}`;
+    const rows = await fetchRange(from, to);
+    if (!rows.length) { box.innerHTML = '<div class="empty">📭 이번 달 급식 정보가 없습니다.</div>'; return; }
+
+    const byDate = {};
+    rows.forEach(r => { if (!byDate[r.MLSV_YMD]) byDate[r.MLSV_YMD] = []; byDate[r.MLSV_YMD].push(r); });
+    const dates = Object.keys(byDate).sort();
+    const calByDate = dates.map(d => ({ date: d, cal: byDate[d].reduce((s, r) => s + parseFloat(r.CAL_INFO || 0), 0) }));
+    const avgCal = Math.round(calByDate.reduce((s, d) => s + d.cal, 0) / calByDate.length);
+
+    const ntrSums = {}, ntrOver = {}, ntrLow = {};
+    Object.keys(DRI).forEach(k => { ntrSums[k] = 0; ntrOver[k] = 0; ntrLow[k] = 0; });
+    dates.forEach(d => {
+      const dn = {}; Object.keys(DRI).forEach(k => dn[k] = 0);
+      byDate[d].forEach(r => { const n = pNtr(r.NTR_INFO); Object.keys(DRI).forEach(k => dn[k] += (n[k] || 0)); });
+      Object.keys(DRI).forEach(k => { ntrSums[k] += dn[k]; const r = dn[k] / DRI[k].rec; if (r > 1.2) ntrOver[k]++; else if (r < 0.7) ntrLow[k]++; });
+    });
+    const ntrAvgs = {}; Object.keys(DRI).forEach(k => ntrAvgs[k] = Math.round(ntrSums[k] / dates.length));
+
+    const ac = {};
+    rows.forEach(r => pDish(r.DDISH_NM).forEach(d => d.nums.forEach(n => { ac[n] = (ac[n] || 0) + 1; })));
+
+    const monthLabel = `${SY}년 ${SM}월`;
+    window._monthlyData = { ntrAvgs, ntrOver, ntrLow, avgCal, dates, ac, monthLabel };
+    _dataSource = 'monthly';
+
+    const imageData = await fetchImageAnalysis(from, to);
+    window._imageData = imageData;
+
+    const topAllergy = Object.entries(ac).sort((a, b) => b[1] - a[1]).slice(0, 5);
+    const allergyHTML = topAllergy.map(([n, cnt]) => {
+      const im = MA.includes(Number(n));
+      return `<div class="exp-row"><div class="exp-name">${im ? '⚠️ ' : ''}<span style="color:${im ? 'var(--red)' : 'var(--text)'}">${AM[n] || n}</span></div><div class="exp-bar-wrap"><div class="exp-fill" style="width:100%;background:${im ? 'var(--red)' : 'rgba(255,255,255,.25)'}"></div></div><div class="exp-count">${cnt}회</div></div>`;
+    }).join('');
+
+    const ntrHTML = Object.entries(DRI).map(([k, i]) => {
+      const avg = ntrAvgs[k], rt = Math.round(avg / i.rec * 100), ov = ntrOver[k], lw = ntrLow[k];
+      const bc = rt > 120 ? 'fover' : rt < 70 ? 'flow' : 'fok';
+      const bt = rt > 120 ? `과잉 ${ov}일` : rt < 70 ? `부족 ${lw}일` : '양호';
+      return `<div class="freq-item"><div class="freq-name">${k.replace(/\(.*?\)/, '')}</div><div class="freq-bar-row"><div class="freq-bar-wrap"><div class="freq-bar-fill" style="width:${Math.min(rt, 100)}%;background:${i.color}"></div></div><div class="freq-pct">${rt}%</div></div><span class="fbadge ${bc}">${bt}</span></div>`;
+    }).join('');
+
+    const imageInfo = imageData
+      ? `<div class="stat-card"><div class="stat-label">📸 이미지 분석</div><div class="stat-value" style="color:var(--blue);font-size:18px">${imageData.imageCount}<span class="stat-unit">회</span></div><div class="stat-sub">평균 ${imageData.avgImageKcal}Kcal / NEIS ${imageData.avgNEISKcal}Kcal</div></div>`
+      : '';
+
+    const aiContent = GK
+      ? `<div class="ai-content" id="wai" style="color:var(--muted);font-style:italic">AI 조언을 생성 중...</div><button class="ai-btn" id="wab" onclick="getAIReport()">✦ AI 조언 받기</button>`
+      : `<div class="ai-content" style="color:var(--muted);font-style:italic">설정에서 Gemini API 키를 입력하면 AI 조언을 받을 수 있어요.</div>`;
+
+    box.innerHTML = `
+<div class="stat-grid">
+  <div class="stat-card"><div class="stat-label">📅 ${monthLabel} 평균 칼로리</div><div class="stat-value" style="color:var(--yellow)">${avgCal.toLocaleString()}<span class="stat-unit">Kcal</span></div><div class="stat-sub">분석 ${dates.length}일</div></div>
+  <div class="stat-card"><div class="stat-label">총 끼니</div><div class="stat-value" style="color:var(--green)">${rows.length}<span class="stat-unit">끼</span></div><div class="stat-sub">조식·중식·석식</div></div>
+  ${imageInfo}
+</div>
+
+<div class="chart-card">
+  <div class="chart-title">📈 영양소 상태</div>
+  <div class="chart-sub">이번 달 권장량 대비 평균</div>
+  <div class="ntr-freq-grid">${ntrHTML}</div>
+</div>
+
+<div class="chart-card">
+  <div class="chart-title">⚠️ 알레르기 노출</div>
+  <div class="chart-sub">이번 달 알레르기 유발 식품</div>
+  ${allergyHTML}
+</div>
+
+<div class="ai-card">
+  <div class="ai-header"><div class="ai-icon">✦</div><div><div style="font-size:14px;font-weight:700">AI 월간 조언</div><div style="font-size:11px;color:var(--muted)">이번 달 급식 데이터 기반 맞춤 인사이트</div></div></div>
+  ${aiContent}
+</div>`;
+
+    if (GK) getAIReport();
+  } catch (e) { box.innerHTML = `<div class="empty">⚠️ 데이터를 불러오지 못했습니다.<br><span style="font-size:12px">${e.message}</span></div>`; }
 }
 
 async function loadWeeklyReport() {
@@ -736,6 +1035,10 @@ async function loadWeeklyReport() {
 
     const weekLabel = getWeekLabel(mon, sun);
     window._weeklyData = { ntrAvgs, ntrOver, ntrLow, avgCal, dates, ac, weekLabel };
+    _dataSource = 'weekly';
+
+    const imageData = await fetchImageAnalysis(from, to);
+    window._imageData = imageData;
 
     const topAllergy = Object.entries(ac).sort((a, b) => b[1] - a[1]).slice(0, 5);
     const allergyHTML = topAllergy.map(([n, cnt]) => {
@@ -750,14 +1053,19 @@ async function loadWeeklyReport() {
       return `<div class="freq-item"><div class="freq-name">${k.replace(/\(.*?\)/, '')}</div><div class="freq-bar-row"><div class="freq-bar-wrap"><div class="freq-bar-fill" style="width:${Math.min(rt, 100)}%;background:${i.color}"></div></div><div class="freq-pct">${rt}%</div></div><span class="fbadge ${bc}">${bt}</span></div>`;
     }).join('');
 
-    const aiContent = CK
-      ? `<div class="ai-content" id="wai" style="color:var(--muted);font-style:italic">AI 조언을 생성 중...</div><button class="ai-btn" id="wab" onclick="getWeeklyAI()">✦ AI 조언 받기</button>`
-      : `<div class="ai-content" style="color:var(--muted);font-style:italic">설정에서 Claude API 키를 입력하면 AI 조언을 받을 수 있어요.</div>`;
+    const imageInfo = imageData
+      ? `<div class="stat-card"><div class="stat-label">📸 이미지 분석</div><div class="stat-value" style="color:var(--blue);font-size:18px">${imageData.imageCount}<span class="stat-unit">회</span></div><div class="stat-sub">평균 ${imageData.avgImageKcal}Kcal / NEIS ${imageData.avgNEISKcal}Kcal</div></div>`
+      : '';
+
+    const aiContent = GK
+      ? `<div class="ai-content" id="wai" style="color:var(--muted);font-style:italic">AI 조언을 생성 중...</div><button class="ai-btn" id="wab" onclick="getAIReport()">✦ AI 조언 받기</button>`
+      : `<div class="ai-content" style="color:var(--muted);font-style:italic">설정에서 Gemini API 키를 입력하면 AI 조언을 받을 수 있어요.</div>`;
 
     box.innerHTML = `
 <div class="stat-grid">
   <div class="stat-card"><div class="stat-label">이번 주(${weekLabel}) 평균 칼로리</div><div class="stat-value" style="color:var(--yellow)">${avgCal.toLocaleString()}<span class="stat-unit">Kcal</span></div><div class="stat-sub">분석 ${dates.length}일</div></div>
-  <div class="stat-card"><div class="stat-label">총 끼트</div><div class="stat-value" style="color:var(--green)">${rows.length}<span class="stat-unit">끼</span></div><div class="stat-sub">조식·중식·석식</div></div>
+  <div class="stat-card"><div class="stat-label">총 끼니</div><div class="stat-value" style="color:var(--green)">${rows.length}<span class="stat-unit">끼</span></div><div class="stat-sub">조식·중식·석식</div></div>
+  ${imageInfo}
 </div>
 
 <div class="chart-card">
@@ -773,40 +1081,12 @@ async function loadWeeklyReport() {
 </div>
 
 <div class="ai-card">
-  <div class="ai-header"><div class="ai-icon">✦</div><div><div style="font-size:14px;font-weight:700">AI 주간 조언</div><div style="font-size:11px;color:var(--muted)">이번 주 급식 기반 맞춤 조언</div></div></div>
+  <div class="ai-header"><div class="ai-icon">✦</div><div><div style="font-size:14px;font-weight:700">AI 주간 조언</div><div style="font-size:11px;color:var(--muted)">이번 주 급식 데이터 기반 맞춤 인사이트</div></div></div>
   ${aiContent}
 </div>`;
 
-    if (CK) getWeeklyAI();
+if (GK) getAIReport();
   } catch (e) { box.innerHTML = `<div class="empty">⚠️ 데이터를 불러오지 못했습니다.<br><span style="font-size:12px">${e.message}</span></div>`; }
-}
-
-async function getWeeklyAI() {
-  const d = window._weeklyData; if (!d) return;
-  const btn = document.getElementById('wab'), c = document.getElementById('wai');
-  btn.disabled = true; btn.textContent='생성 중...';
-  c.style.fontStyle='italic'; c.style.color='var(--muted)'; c.textContent='AI가 데이터를 분석하고 있습니다...';
-
-  const ns = Object.entries(DRI).map(([k,i]) => {
-    const avg = d.ntrAvgs[k], rt = Math.round(avg/i.rec*100);
-    return `${k.replace(/\(.*?\)/,'')}: 평균${avg}(권장${i.rec},${rt}%), 부족${d.ntrLow[k]}일, 과잉${d.ntrOver[k]}일`;
-  }).join('\n');
-
-  const ta = Object.entries(d.ac).sort((a,b) => b[1]-a[1]).slice(0,5).map(([n,c]) => `${AM[n]||n}:${c}회`).join(',');
-
-  const prompt = `상산고등학교 이번 주(${d.weekLabel}) 급식 영양 분석입니다.\n\n[영양소]\n${ns}\n[평균칼로리]${d.avgCal}Kcal(${d.dates.length}일)\n[자주 등장 알레르기]${ta}\n\n학부모에게 다음 3가지를 친근하게 알려주세요:\n1. 🥗 부족한 영양소와 집에서 보완할 구체적 식품(2~3가지)\n2. ⚠️ 주의할 영양 패턴\n3. ✅ 이번 주 총평\n전문용어 없이 실천 가능한 조언으로.`;
-
-  try {
-    const res = await fetch('https://api.anthropic.com/v1/messages', {
-      method:'POST',
-      headers:{'Content-Type':'application/json','x-api-key':CK,'anthropic-version':'2023-06-01'},
-      body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:700,messages:[{role:'user',content:prompt}]})
-    });
-    const j = await res.json();
-    const t = j.content?.[0]?.text||'분석 결과를 받지 못했습니다.';
-    c.style.fontStyle='normal'; c.style.color='rgba(255,255,255,.8)'; c.textContent=t;
-    btn.textContent='✓ 완료';
-  } catch(e){ c.textContent='오류: '+e.message; btn.disabled=false; btn.textContent='✦ 다시 시도'; }
 }
 
 function exportDaily() {

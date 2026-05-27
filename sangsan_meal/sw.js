@@ -1,9 +1,12 @@
-const CACHE_NAME = 'sangsan-meal-v3';
+const CACHE_NAME = 'sangsan-meal-v5';
+const V = '20260527';
 const STATIC_ASSETS = [
   'index.html',
   'manifest.json',
   'css/style.css',
   'js/app.js',
+  `js/app.js?v=${V}`,
+  `js/image-analysis.js?v=${V}`,
   'https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;700;900&family=Space+Mono:wght@400;700&display=swap',
   'https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js'
 ];
@@ -12,7 +15,7 @@ const STATIC_ASSETS = [
 self.addEventListener('install', e => {
   e.waitUntil(
     caches.open(CACHE_NAME).then(cache => {
-      return cache.addAll(STATIC_ASSETS);
+      return Promise.allSettled(STATIC_ASSETS.map(url => cache.add(url).catch(() => {})));
     }).then(() => self.skipWaiting())
   );
 });
@@ -36,7 +39,8 @@ self.addEventListener('fetch', e => {
     url.hostname.includes('allorigins.win') ||
     url.hostname.includes('corsproxy.io') ||
     url.hostname.includes('codetabs.com') ||
-    url.hostname.includes('anthropic.com');
+    url.hostname.includes('anthropic.com') ||
+    url.hostname.includes('googleapis.com');
 
   if (isExternal) return; /* SW 개입 없이 브라우저가 직접 처리 */
 
@@ -53,6 +57,18 @@ self.addEventListener('fetch', e => {
           return res;
         });
       })
+    );
+    return;
+  }
+
+  /* JS 파일 → 네트워크 우선 (업데이트 반영), 폴백 캐시 */
+  if (url.pathname.endsWith('.js')) {
+    e.respondWith(
+      fetch(e.request).then(res => {
+        const clone = res.clone();
+        caches.open(CACHE_NAME).then(c => c.put(e.request, clone));
+        return res;
+      }).catch(() => caches.match(e.request))
     );
     return;
   }

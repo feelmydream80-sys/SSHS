@@ -133,6 +133,11 @@ main{position:relative;z-index:10;max-width:960px;margin:0 auto;padding:24px 16p
 .autocomplete-item:last-child{border-bottom:none}
 .autocomplete-item:hover{background:rgba(79,255,176,.1)}
 .autocomplete-item.selected{background:rgba(79,255,176,.15);color:var(--green)}
+.period-toggle{display:flex;gap:4px;margin-bottom:16px;background:rgba(255,255,255,.03);border:1px solid var(--border);border-radius:10px;padding:4px;}
+.period-btn{flex:1;padding:10px 6px;border-radius:7px;border:none;background:transparent;color:var(--muted);font-family:'Space Mono',monospace;font-size:10px;letter-spacing:.1em;cursor:pointer;transition:all .2s;}
+.period-btn.on{background:rgba(79,255,176,.12);color:var(--green);}
+.period-btn:hover{color:var(--text);}
+#profile-summary{font-size:12px;color:var(--muted);line-height:1.7;}
 .autocomplete-empty{padding:12px;text-align:center;color:var(--muted);font-size:11px}
 .autocomplete-loading{padding:12px;text-align:center;color:var(--muted);font-size:11px}
 .search-hint{font-size:9px;color:var(--muted);margin-top:4px;font-family:'Space Mono',monospace}
