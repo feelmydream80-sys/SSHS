@@ -37,14 +37,6 @@ def index():
     return send_from_directory(app.static_folder, "index.html")
 
 
-@app.route("/<path:path>")
-def static_files(path):
-    file_path = os.path.join(app.static_folder, path)
-    if os.path.isfile(file_path):
-        return send_from_directory(app.static_folder, path)
-    return send_from_directory(app.static_folder, "index.html")
-
-
 @app.route("/api/detect", methods=["POST"])
 def api_detect():
     if "image" not in request.files:
@@ -349,7 +341,8 @@ def api_proxy_food_nutri():
 
 @app.route("/api/health", methods=["GET"])
 def api_health():
-    return jsonify({"status": "ok", "time": datetime.now().isoformat()})
+    VERSION = "cf309f2-fix"
+    return jsonify({"status": "ok", "version": VERSION, "time": datetime.now().isoformat()})
 
 
 @app.route("/api/diagnose", methods=["GET"])
@@ -380,6 +373,14 @@ def api_diagnose():
     except Exception as e:
         diag["numpy_error"] = str(e)
     return jsonify(diag)
+
+
+@app.route("/<path:path>")
+def static_files(path):
+    file_path = os.path.join(app.static_folder, path)
+    if os.path.isfile(file_path):
+        return send_from_directory(app.static_folder, path)
+    return send_from_directory(app.static_folder, "index.html")
 
 
 if __name__ == "__main__":
