@@ -92,7 +92,6 @@ function debounce(fn, delay) {
 
 const DEFAULT_NEIS_KEY = '35b75a10a2fe426b8aa1b072ab2be207';
 const DEFAULT_GEMINI_KEY = 'AIzaSyBHinJjUFWIv2z9QA39rl8ONM4rAIfjqOQ';
-const DEFAULT_DEEPSEEK_KEY = 'sk-omLs4GxwcqzeobbhlCPyhjSqSYKbAp88j8nzxmXFnM9w40wF5SOrFGKpKjFQ67pw';
 let NK = '', GK = '', MA = [], SY = 2025, SM = 4, CHARTS = {}, _aiModel = 'gemini';
 
 if ('serviceWorker' in navigator) {
@@ -765,9 +764,9 @@ ${ns}
   try {
     let url, headers, body;
     if (_aiModel === 'deepseek') {
-      url = 'https://api.deepseek.com/v1/chat/completions';
-      headers = { 'Content-Type': 'application/json', 'Authorization': `Bearer ${DEFAULT_DEEPSEEK_KEY}` };
-      body = { model: 'deepseek-chat', messages: [{ role: 'user', content: prompt }], max_tokens: 900 };
+      url = '/api/proxy/opencode-ai';
+      headers = { 'Content-Type': 'application/json' };
+      body = { model: 'deepseek-v4-flash-free', messages: [{ role: 'user', content: prompt }], max_tokens: 4096 };
     } else {
       url = `https://generativelanguage.googleapis.com/v1/models/gemini-2.0-flash:generateContent?key=${GK}`;
       headers = { 'Content-Type': 'application/json' };

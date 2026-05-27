@@ -227,6 +227,9 @@ class MealAnalyzer:
         for sec, cnt, fcx, fcy in assigned:
             col = colors[(sec - 1) % 6]
 
+            if sec == 6:
+                overlay_saved = overlay.copy()
+
             if cnt is not None and sec >= 5:
                 cell_x1 = sec5_x1 if sec == 5 else sec6_x1
                 cell_x2 = sec5_x2 if sec == 5 else sec6_x2
@@ -301,6 +304,10 @@ class MealAnalyzer:
                 "pixel_area": px_area,
                 "placeholder": cnt is None
             })
+
+            if sec == 6:
+                overlay = overlay_saved
+                continue
 
             label = f"{sec}번"
             (lx, ly), _ = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, 1.0, 3)

@@ -101,6 +101,7 @@ function irenderRegions() {
   svg.style.pointerEvents = 'none';
   let html = '';
   iDetectedRegions.forEach((r, idx) => {
+    if (r.section === 6) return;
     const fill = REGION_COLORS[idx % REGION_COLORS.length];
     const pts = r.polygon.map(p => `${p[0]},${p[1]}`).join(' ');
     const label = `${r.section}번`;
@@ -120,27 +121,27 @@ function irenderRegions() {
       font-size="14" font-weight="bold" stroke="#000" stroke-width="3" fill="#fff">${foodLabel}</text>`;
     html += `<text x="${cx}" y="${cy + 20}" text-anchor="middle" style="pointer-events:none"
       font-size="14" font-weight="bold" fill="#fff">${foodLabel}</text>`;
-    if (r.section !== 6) {
-      r.polygon.forEach((p, vi) => {
-        html += `<circle cx="${p[0]}" cy="${p[1]}" r="5" fill="#fff" stroke="${fill}" stroke-width="2"
-          style="pointer-events:auto;cursor:nwse-resize"
-          data-idx="${idx}" data-vi="${vi}"
-          onmousedown="iStartVertexDrag(event,${idx},${vi})"/>`;
-      });
-    }
+    r.polygon.forEach((p, vi) => {
+      html += `<circle cx="${p[0]}" cy="${p[1]}" r="5" fill="#fff" stroke="${fill}" stroke-width="2"
+        style="pointer-events:auto;cursor:nwse-resize"
+        data-idx="${idx}" data-vi="${vi}"
+        onmousedown="iStartVertexDrag(event,${idx},${vi})"/>`;
+    });
   });
   svg.innerHTML = html;
 }
 
 function ibuildLegend() {
-  const html = iDetectedRegions.map((r, idx) => {
+  let html = '';
+  iDetectedRegions.forEach((r, idx) => {
+    if (r.section === 6) return;
     const c = REGION_COLORS[idx % REGION_COLORS.length];
     const food = r.food_name || '(미지정)';
-    return `<span style="display:inline-flex;align-items:center;gap:4px;font-size:10px;color:var(--muted);cursor:pointer" onclick="iregionClick(${idx})">
+    html += `<span style="display:inline-flex;align-items:center;gap:4px;font-size:10px;color:var(--muted);cursor:pointer" onclick="iregionClick(${idx})">
       <span style="display:inline-block;width:16px;height:16px;border-radius:3px;background:${c};text-align:center;line-height:16px;font-size:9px;font-weight:700;color:#fff">${r.section}</span>
       ${r.section}번 칸 ${food}
     </span>`;
-  }).join('');
+  });
   document.getElementById('ilegend').innerHTML = html;
 }
 
@@ -589,9 +590,11 @@ async function ifetchMenu() {
       try {
         const resp = await fetch(`/api/menu/${dateStr}`);
         const data = await resp.json();
-        if (!data.error) {
+        if (!data.error && data.meals && Object.keys(data.meals).length > 0) {
           iMenuData = data;
-          meals = data.meals || {};
+          meals = data.meals;
+        } else {
+          meals = await iFetchNEISDirect(dateStr);
         }
       } catch {
         meals = await iFetchNEISDirect(dateStr);

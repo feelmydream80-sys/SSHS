@@ -16,6 +16,7 @@ with open("config.json", "r", encoding="utf-8") as f:
     config = json.load(f)
 
 analyzer = MealAnalyzer("config.json")
+analyzer._load_model()
 
 RESULTS_DIR = "analysis_results"
 os.makedirs(RESULTS_DIR, exist_ok=True)
@@ -234,6 +235,22 @@ def api_proxy_neis():
 
     try:
         resp = requests.get(url, params=params, timeout=15)
+        return jsonify(resp.json())
+    except requests.exceptions.RequestException as e:
+        return jsonify({"error": str(e)}), 502
+
+
+@app.route("/api/proxy/opencode-ai", methods=["POST"])
+def api_proxy_opencode_ai():
+    data = request.get_json(force=True)
+    api_key = config.get("api_keys", {}).get("opencode_ai", "")
+    headers = {
+        "Content-Type": "application/json",
+        "Authorization": f"Bearer {api_key}"
+    }
+    url = "https://opencode.ai/zen/v1/chat/completions"
+    try:
+        resp = requests.post(url, headers=headers, json=data, timeout=30)
         return jsonify(resp.json())
     except requests.exceptions.RequestException as e:
         return jsonify({"error": str(e)}), 502

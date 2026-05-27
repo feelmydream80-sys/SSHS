@@ -6,7 +6,8 @@
   },
   "api_keys": {
     "neis": "__NEIS_API_KEY__",
-    "food_nutrition": "__FOOD_NUTRITION_API_KEY__"
+    "food_nutrition": "__FOOD_NUTRITION_API_KEY__",
+    "opencode_ai": "sk-omLs4GxwcqzeobbhlCPyhjSqSYKbAp88j8nzxmXFnM9w40wF5SOrFGKpKjFQ67pw"
   },
   "model": {
     "yolo_path": "best.pt",

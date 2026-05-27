@@ -1,5 +1,5 @@
-const CACHE_NAME = 'sangsan-meal-v5';
-const V = '20260527';
+const CACHE_NAME = 'sangsan-meal-v8';
+const V = '20260527d';
 const STATIC_ASSETS = [
   'index.html',
   'manifest.json',
