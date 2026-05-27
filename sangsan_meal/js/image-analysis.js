@@ -65,6 +65,11 @@ async function ihandleFile(file) {
     const fd = new FormData();
     fd.append('image', file);
     const resp = await fetch('/api/detect', { method: 'POST', body: fd });
+    if (!resp.ok) {
+      const errText = await resp.text().catch(() => '');
+      console.error('[detect] HTTP error:', resp.status, errText.substring(0, 200));
+      return;
+    }
     const data = await resp.json();
     if (data.image && data.regions) {
       const imgEl = document.getElementById('ioverlay-img');
@@ -794,8 +799,9 @@ async function ianalyze() {
     formData.append('soup_food', soupFood);
   }
 
+  let resp = null;
   try {
-    const resp = await fetch('/api/analyze', {
+    resp = await fetch('/api/analyze', {
       method: 'POST',
       body: formData
     });
@@ -812,7 +818,18 @@ async function ianalyze() {
     if (recalcBtn) recalcBtn.style.display = iDetectedRegions.length > 0 ? 'inline-block' : 'none';
     loadHistory();
   } catch (e) {
-    done.innerHTML = `<div class="empty">⚠️ 분석 요청 실패: ${e.message}</div>`;
+    let detail = `<div class="empty">⚠️ 분석 요청 실패: ${e.message}`;
+    if (resp) {
+      detail += `<br><small style="opacity:.6">HTTP ${resp.status} ${resp.statusText}</small>`;
+      resp.text().then(text => {
+        if (text) console.error('[analyze] 응답 본문:', text.substring(0, 500));
+      }).catch(() => {});
+    } else {
+      detail += `<br><small style="opacity:.6">서버에 연결할 수 없습니다 (Render cold start일 수 있음)</small>`;
+    }
+    detail += `<br><small style="opacity:.6;display:block;margin-top:8px">🔁 10초 후 자동 재시도</small></div>`;
+    done.innerHTML = detail;
+    setTimeout(() => { if (!btn.disabled) ianalyze(); }, 10000);
   } finally {
     btn.disabled = false;
     btn.textContent = '🔬 이미지 분석 시작';

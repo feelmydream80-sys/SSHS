@@ -1,19 +1,55 @@
-import os
+import os, sys
 import json
 import uuid
 import gc
-import tempfile
+import logging
+import time
 
 os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
 os.environ["OMP_NUM_THREADS"] = "1"
 os.environ["MKL_NUM_THREADS"] = "1"
 os.environ["OPENBLAS_NUM_THREADS"] = "1"
+import threading
 from datetime import datetime, timedelta
 from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
 import requests
 
 from analyzer import MealAnalyzer
+
+
+class TimeoutError(Exception):
+    pass
+
+
+def run_with_timeout(func, args=(), kwargs=None, timeout=25):
+    if kwargs is None:
+        kwargs = {}
+    result = [None]
+    exception = [None]
+    finished = [False]
+
+    def worker():
+        try:
+            result[0] = func(*args, **kwargs)
+        except Exception as e:
+            exception[0] = e
+        finally:
+            finished[0] = True
+
+    t = threading.Thread(target=worker, daemon=True)
+    t_start = time.time()
+    t.start()
+    t.join(timeout)
+
+    if not finished[0]:
+        raise TimeoutError(f"분석 시간이 {timeout}초를 초과했습니다 (elapsed: {time.time() - t_start:.1f}s)")
+    if exception[0]:
+        raise exception[0]
+    return result[0]
+
+logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
+logger = logging.getLogger(__name__)
 
 app = Flask(__name__, static_folder="sangsan_meal")
 CORS(app)
@@ -22,9 +58,15 @@ with open("config.json", "r", encoding="utf-8") as f:
     config = json.load(f)
 
 analyzer = MealAnalyzer("config.json")
-analyzer._load_model()
+# 모델은 lazy 로딩 (첫 분석 요청 시 로드)
 import torch
 torch.set_num_threads(1)
+
+
+@app.errorhandler(Exception)
+def handle_unhandled_exception(e):
+    logger.error(f"Unhandled exception: {e}", exc_info=True)
+    return jsonify({"error": f"서버 내부 오류: {type(e).__name__}: {str(e)}"}), 500
 
 RESULTS_DIR = "analysis_results"
 os.makedirs(RESULTS_DIR, exist_ok=True)
@@ -62,6 +104,7 @@ def index():
 
 @app.route("/api/detect", methods=["POST"])
 def api_detect():
+    t_start = time.time()
     if "image" not in request.files:
         return jsonify({"error": "이미지 파일이 필요합니다."}), 400
     image_file = request.files["image"]
@@ -69,14 +112,19 @@ def api_detect():
     image_filename = f"detect_{uuid.uuid4().hex}{ext}"
     image_path = os.path.join(IMAGES_DIR, image_filename)
     image_file.save(image_path)
-    _resize_image(image_path)
     try:
+        _resize_image(image_path)
+        if analyzer.model is None:
+            logger.info("[detect] 모델 lazy 로딩 시작")
+            analyzer._load_model()
         import base64
         buffer, regions = analyzer.detect(image_path)
         b64 = base64.b64encode(buffer).decode("utf-8")
         gc.collect()
+        logger.info(f"[detect] 완료 (elapsed: {time.time() - t_start:.2f}s)")
         return jsonify({"image": f"data:image/jpeg;base64,{b64}", "regions": regions})
     except Exception as e:
+        logger.error(f"[detect] 오류: {e}", exc_info=True)
         return jsonify({"error": f"영역 검출 중 오류: {str(e)}"}), 500
     finally:
         if os.path.exists(image_path):
@@ -85,6 +133,9 @@ def api_detect():
 
 @app.route("/api/analyze", methods=["POST"])
 def api_analyze():
+    t_start = time.time()
+    logger.info("[analyze] 시작")
+
     if "image" not in request.files:
         return jsonify({"error": "이미지 파일이 필요합니다."}), 400
 
@@ -97,64 +148,89 @@ def api_analyze():
     image_filename = f"{uuid.uuid4().hex}{ext}"
     image_path = os.path.join(IMAGES_DIR, image_filename)
     image_file.save(image_path)
-    _resize_image(image_path)
+    logger.info(f"[analyze] 이미지 저장 완료 ({image_filename})")
 
     try:
+        _resize_image(image_path)
+        logger.info("[analyze] 이미지 리사이즈 완료")
+
+        # lazy 모델 로딩
+        if analyzer.model is None:
+            logger.info("[analyze] 모델 lazy 로딩 시작")
+            analyzer._load_model()
+            logger.info("[analyze] 모델 로딩 완료")
+
         if use_regions == "true":
             regions_json = request.form.get("regions", "[]")
             regions = json.loads(regions_json)
             tray_corners_json = request.form.get("tray_corners", "null")
             tray_corners = json.loads(tray_corners_json) if tray_corners_json != "null" else None
-            result = analyzer.analyze_with_regions(image_path, regions, tray_corners)
+            logger.info(f"[analyze] analyze_with_regions 시작 (지역 {len(regions)}개)")
+            result = run_with_timeout(
+                analyzer.analyze_with_regions,
+                args=(image_path, regions, tray_corners),
+                timeout=25
+            )
         else:
             menu_json = request.form.get("menu", "{}")
             soup_food = request.form.get("soup_food", "")
             tray_foods = json.loads(menu_json)
-            result = analyzer.analyze(image_path, tray_foods, soup_food)
+            logger.info(f"[analyze] analyze 시작 (메뉴: {tray_foods})")
+            result = run_with_timeout(
+                analyzer.analyze,
+                args=(image_path, tray_foods, soup_food),
+                timeout=25
+            )
+        logger.info(f"[analyze] 분석 완료 (elapsed: {time.time() - t_start:.2f}s)")
+
+        if use_regions == "true":
+            menu_from_regions = {}
+            for r in regions:
+                sec = r.get("section", 0)
+                name = r.get("food_name", "")
+                if sec == 0 or sec == 6:
+                    menu_from_regions["soup"] = name
+                else:
+                    menu_from_regions[str(sec)] = name
+            record_menu = menu_from_regions
+            record_soup = menu_from_regions.get("soup", "")
+        else:
+            record_menu = tray_foods
+            record_soup = soup_food
+
+        record = {
+            "id": uuid.uuid4().hex[:12],
+            "date": date_str,
+            "timestamp": datetime.now().isoformat(),
+            "meal_time": meal_time,
+            "menu": record_menu,
+            "soup_food": record_soup,
+            "result": result,
+            "image_filename": image_filename
+        }
+
+        record_path = os.path.join(RESULTS_DIR, f"{record['id']}.json")
+        with open(record_path, "w", encoding="utf-8") as f:
+            json.dump(record, f, ensure_ascii=False, indent=2)
+        logger.info(f"[analyze] 결과 저장 완료 (id={record['id']})")
+
+        gc.collect()
+        return jsonify(record)
+
     except ValueError as e:
+        logger.warning(f"[analyze] ValueError: {e}")
         return jsonify({"error": str(e)}), 400
     except Exception as e:
-        return jsonify({"error": f"분석 중 오류: {str(e)}"}), 500
+        logger.error(f"[analyze] 분석 오류 (elapsed: {time.time() - t_start:.2f}s): {e}", exc_info=True)
+        return jsonify({"error": f"분석 중 오류: {type(e).__name__}: {str(e)}", "elapsed": round(time.time() - t_start, 2)}), 500
     finally:
         if os.path.exists(image_path):
             os.remove(image_path)
 
-    if use_regions == "true":
-        menu_from_regions = {}
-        for r in regions:
-            sec = r.get("section", 0)
-            name = r.get("food_name", "")
-            if sec == 0 or sec == 6:
-                menu_from_regions["soup"] = name
-            else:
-                menu_from_regions[str(sec)] = name
-        record_menu = menu_from_regions
-        record_soup = menu_from_regions.get("soup", "")
-    else:
-        record_menu = tray_foods
-        record_soup = soup_food
-
-    record = {
-        "id": uuid.uuid4().hex[:12],
-        "date": date_str,
-        "timestamp": datetime.now().isoformat(),
-        "meal_time": meal_time,
-        "menu": record_menu,
-        "soup_food": record_soup,
-        "result": result,
-        "image_filename": image_filename
-    }
-
-    record_path = os.path.join(RESULTS_DIR, f"{record['id']}.json")
-    with open(record_path, "w", encoding="utf-8") as f:
-        json.dump(record, f, ensure_ascii=False, indent=2)
-
-    gc.collect()
-    return jsonify(record)
-
 
 @app.route("/api/analyze-url", methods=["POST"])
 def api_analyze_url():
+    t_start = time.time()
     data = request.get_json(force=True)
     image_url = data.get("image_url", "")
     tray_foods = data.get("menu", {})
@@ -178,31 +254,40 @@ def api_analyze_url():
         return jsonify({"error": f"이미지 다운로드 실패: {str(e)}"}), 400
 
     try:
-        result = analyzer.analyze(image_path, tray_foods, soup_food)
+        if analyzer.model is None:
+            logger.info("[analyze-url] 모델 lazy 로딩 시작")
+            analyzer._load_model()
+        result = run_with_timeout(
+            analyzer.analyze,
+            args=(image_path, tray_foods, soup_food),
+            timeout=25
+        )
+        logger.info(f"[analyze-url] 분석 완료 (elapsed: {time.time() - t_start:.2f}s)")
+
+        record = {
+            "id": uuid.uuid4().hex[:12],
+            "date": date_str,
+            "timestamp": datetime.now().isoformat(),
+            "meal_time": meal_time,
+            "menu": tray_foods,
+            "soup_food": soup_food,
+            "result": result,
+            "image_filename": image_filename
+        }
+
+        record_path = os.path.join(RESULTS_DIR, f"{record['id']}.json")
+        with open(record_path, "w", encoding="utf-8") as f:
+            json.dump(record, f, ensure_ascii=False, indent=2)
+
+        return jsonify(record)
     except ValueError as e:
         return jsonify({"error": str(e)}), 400
     except Exception as e:
-        return jsonify({"error": f"분석 중 오류: {str(e)}"}), 500
+        logger.error(f"[analyze-url] 분석 오류 (elapsed: {time.time() - t_start:.2f}s): {e}", exc_info=True)
+        return jsonify({"error": f"분석 중 오류: {type(e).__name__}: {str(e)}"}), 500
     finally:
         if os.path.exists(image_path):
             os.remove(image_path)
-
-    record = {
-        "id": uuid.uuid4().hex[:12],
-        "date": date_str,
-        "timestamp": datetime.now().isoformat(),
-        "meal_time": meal_time,
-        "menu": tray_foods,
-        "soup_food": soup_food,
-        "result": result,
-        "image_filename": image_filename
-    }
-
-    record_path = os.path.join(RESULTS_DIR, f"{record['id']}.json")
-    with open(record_path, "w", encoding="utf-8") as f:
-        json.dump(record, f, ensure_ascii=False, indent=2)
-
-    return jsonify(record)
 
 
 @app.route("/api/results", methods=["GET"])
