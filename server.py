@@ -1,6 +1,7 @@
 import os
 import json
 import uuid
+import gc
 import tempfile
 from datetime import datetime, timedelta
 from flask import Flask, request, jsonify, send_from_directory
@@ -32,6 +33,21 @@ def get_neis_key():
     return ""
 
 
+MAX_IMAGE_PX = 1200
+
+def _resize_image(path):
+    import cv2
+    img = cv2.imread(path)
+    if img is None:
+        return
+    h, w = img.shape[:2]
+    if max(h, w) > MAX_IMAGE_PX:
+        scale = MAX_IMAGE_PX / max(h, w)
+        new_w, new_h = int(w * scale), int(h * scale)
+        resized = cv2.resize(img, (new_w, new_h), interpolation=cv2.INTER_AREA)
+        cv2.imwrite(path, resized, [cv2.IMWRITE_JPEG_QUALITY, 85])
+
+
 @app.route("/")
 def index():
     return send_from_directory(app.static_folder, "index.html")
@@ -46,10 +62,12 @@ def api_detect():
     image_filename = f"detect_{uuid.uuid4().hex}{ext}"
     image_path = os.path.join(IMAGES_DIR, image_filename)
     image_file.save(image_path)
+    _resize_image(image_path)
     try:
         import base64
         buffer, regions = analyzer.detect(image_path)
         b64 = base64.b64encode(buffer).decode("utf-8")
+        gc.collect()
         return jsonify({"image": f"data:image/jpeg;base64,{b64}", "regions": regions})
     except Exception as e:
         return jsonify({"error": f"영역 검출 중 오류: {str(e)}"}), 500
@@ -72,6 +90,7 @@ def api_analyze():
     image_filename = f"{uuid.uuid4().hex}{ext}"
     image_path = os.path.join(IMAGES_DIR, image_filename)
     image_file.save(image_path)
+    _resize_image(image_path)
 
     try:
         if use_regions == "true":
@@ -123,6 +142,7 @@ def api_analyze():
     with open(record_path, "w", encoding="utf-8") as f:
         json.dump(record, f, ensure_ascii=False, indent=2)
 
+    gc.collect()
     return jsonify(record)
 
 
@@ -146,6 +166,7 @@ def api_analyze_url():
         image_path = os.path.join(IMAGES_DIR, image_filename)
         with open(image_path, "wb") as f:
             f.write(resp.content)
+        _resize_image(image_path)
     except Exception as e:
         return jsonify({"error": f"이미지 다운로드 실패: {str(e)}"}), 400
 
