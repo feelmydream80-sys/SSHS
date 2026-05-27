@@ -14,7 +14,7 @@
     "warp_width": 600,
     "warp_height": 450,
     "conf_threshold": 0.15,
-    "imgsz": 500
+    "imgsz": 320
   },
   "tray": {
     "real_width_cm": 35,

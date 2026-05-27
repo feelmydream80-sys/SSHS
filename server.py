@@ -3,6 +3,11 @@ import json
 import uuid
 import gc
 import tempfile
+
+os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
+os.environ["OMP_NUM_THREADS"] = "1"
+os.environ["MKL_NUM_THREADS"] = "1"
+os.environ["OPENBLAS_NUM_THREADS"] = "1"
 from datetime import datetime, timedelta
 from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
@@ -18,6 +23,8 @@ with open("config.json", "r", encoding="utf-8") as f:
 
 analyzer = MealAnalyzer("config.json")
 analyzer._load_model()
+import torch
+torch.set_num_threads(1)
 
 RESULTS_DIR = "analysis_results"
 os.makedirs(RESULTS_DIR, exist_ok=True)
