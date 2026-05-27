@@ -9,7 +9,6 @@ os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
 os.environ["OMP_NUM_THREADS"] = "1"
 os.environ["MKL_NUM_THREADS"] = "1"
 os.environ["OPENBLAS_NUM_THREADS"] = "1"
-import threading
 from datetime import datetime, timedelta
 from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
@@ -18,35 +17,18 @@ import requests
 from analyzer import MealAnalyzer
 
 
+REQUEST_TIMEOUT = 28
+
+
 class TimeoutError(Exception):
     pass
 
 
-def run_with_timeout(func, args=(), kwargs=None, timeout=25):
-    if kwargs is None:
-        kwargs = {}
-    result = [None]
-    exception = [None]
-    finished = [False]
-
-    def worker():
-        try:
-            result[0] = func(*args, **kwargs)
-        except Exception as e:
-            exception[0] = e
-        finally:
-            finished[0] = True
-
-    t = threading.Thread(target=worker, daemon=True)
-    t_start = time.time()
-    t.start()
-    t.join(timeout)
-
-    if not finished[0]:
-        raise TimeoutError(f"분석 시간이 {timeout}초를 초과했습니다 (elapsed: {time.time() - t_start:.1f}s)")
-    if exception[0]:
-        raise exception[0]
-    return result[0]
+def check_remaining(t0, phase):
+    elapsed = time.time() - t0
+    if elapsed >= REQUEST_TIMEOUT:
+        raise TimeoutError(f"'{phase}' 단계 시간 초과 (elapsed: {elapsed:.1f}s >= {REQUEST_TIMEOUT}s)")
+    return elapsed
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger(__name__)
@@ -152,6 +134,7 @@ def api_analyze():
 
     try:
         _resize_image(image_path)
+        check_remaining(t_start, "resize")
         logger.info("[analyze] 이미지 리사이즈 완료")
 
         # lazy 모델 로딩
@@ -159,6 +142,7 @@ def api_analyze():
             logger.info("[analyze] 모델 lazy 로딩 시작")
             analyzer._load_model()
             logger.info("[analyze] 모델 로딩 완료")
+        check_remaining(t_start, "model_load")
 
         if use_regions == "true":
             regions_json = request.form.get("regions", "[]")
@@ -166,21 +150,14 @@ def api_analyze():
             tray_corners_json = request.form.get("tray_corners", "null")
             tray_corners = json.loads(tray_corners_json) if tray_corners_json != "null" else None
             logger.info(f"[analyze] analyze_with_regions 시작 (지역 {len(regions)}개)")
-            result = run_with_timeout(
-                analyzer.analyze_with_regions,
-                args=(image_path, regions, tray_corners),
-                timeout=25
-            )
+            result = analyzer.analyze_with_regions(image_path, regions, tray_corners)
         else:
             menu_json = request.form.get("menu", "{}")
             soup_food = request.form.get("soup_food", "")
             tray_foods = json.loads(menu_json)
             logger.info(f"[analyze] analyze 시작 (메뉴: {tray_foods})")
-            result = run_with_timeout(
-                analyzer.analyze,
-                args=(image_path, tray_foods, soup_food),
-                timeout=25
-            )
+            result = analyzer.analyze(image_path, tray_foods, soup_food)
+        check_remaining(t_start, "analyze")
         logger.info(f"[analyze] 분석 완료 (elapsed: {time.time() - t_start:.2f}s)")
 
         if use_regions == "true":
@@ -257,11 +234,9 @@ def api_analyze_url():
         if analyzer.model is None:
             logger.info("[analyze-url] 모델 lazy 로딩 시작")
             analyzer._load_model()
-        result = run_with_timeout(
-            analyzer.analyze,
-            args=(image_path, tray_foods, soup_food),
-            timeout=25
-        )
+        check_remaining(t_start, "model_load")
+        result = analyzer.analyze(image_path, tray_foods, soup_food)
+        check_remaining(t_start, "analyze")
         logger.info(f"[analyze-url] 분석 완료 (elapsed: {time.time() - t_start:.2f}s)")
 
         record = {
