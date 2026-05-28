@@ -111,7 +111,12 @@ body {
   align-items: center;
   justify-content: center;
   position: relative;
+  overflow: hidden;
 }
+.screenshot-slide { overflow: hidden !important; }
+.screenshot-slide .card { justify-content: flex-start; }
+.screenshot-box img { max-width: 100%; max-height: 55vh; width: auto; height: auto; object-fit: contain; }
+.screenshot-slide .grid-2 img { max-width: 100%; max-height: 35vh; width: auto; height: auto; object-fit: contain; }
 .slide.active { display: flex; }
 
 /* Card */
@@ -285,7 +290,20 @@ tr:hover td { background: #f8fafc; }
     overflow: hidden;
   }
   .slide:last-child { page-break-after: auto; }
+  .screenshot-slide {
+    height: auto !important;
+    min-height: 210mm !important;
+    max-height: none !important;
+    overflow: visible !important;
+  }
+  .screenshot-slide .card {
+    height: auto !important;
+    min-height: 190mm !important;
+    max-height: none !important;
+    overflow: visible !important;
+  }
   .progress-track, .slide-counter, .cat-label, .nav-btn, .kbd-hint { display: none !important; }
+  .card::after { display: none !important; }
   .card {
     width: 100% !important;
     max-width: 100% !important;
@@ -309,19 +327,106 @@ tr:hover td { background: #f8fafc; }
   ul li { font-size: 12px !important; margin-bottom: 6px !important; }
   .stat-row { margin-top: 14px !important; }
   .stat-pill { padding: 10px 16px !important; min-width: 100px !important; }
-  .screenshot-box { padding: 0 !important; max-height: 120px !important; overflow: hidden !important; }
-  .screenshot-box img { max-height: 110px !important; width: auto !important; margin: 0 auto !important; display: block !important; }
+  .screenshot-box { padding: 0 !important; overflow: hidden !important; }
+  .screenshot-box img { max-width: 100% !important; max-height: 440px !important; width: auto !important; height: auto !important; margin: 0 auto !important; display: block !important; }
+  .screenshot-slide .grid-2 img { max-width: 100% !important; max-height: 400px !important; width: auto !important; height: auto !important; margin: 0 auto !important; display: block !important; }
   .bg-number { font-size: 100px !important; bottom: -10px !important; right: 24px !important; }
   .grid-2 { gap: 14px !important; }
   .grid-3 { gap: 12px !important; }
   .cmd-box { margin-top: 14px !important; padding: 10px 14px !important; }
+  * { animation: none !important; transition: none !important; }
 }
+@media (prefers-reduced-motion: reduce) {
+  * { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+}
+
+/* ===== Animations ===== */
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(24px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+@keyframes shimmer {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(200%); }
+}
+@keyframes scaleIn {
+  from { opacity: 0; transform: scale(0.96); }
+  to { opacity: 1; transform: scale(1); }
+}
+@keyframes countIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* Card entrance — staggered via animation-delay */
+.slide.active .card.animated { animation: scaleIn 0.4s ease both; }
+.slide.active .card.animated .badge { animation: fadeInUp 0.4s ease both; animation-delay: 0.05s; }
+.slide.active .card.animated .slide-title { animation: fadeInUp 0.5s ease both; animation-delay: 0.12s; }
+.slide.active .card.animated .slide-sub { animation: fadeInUp 0.5s ease both; animation-delay: 0.2s; }
+.slide.active .card.animated .slide-desc,
+.slide.active .card.animated .desc-list { animation: fadeInUp 0.5s ease both; animation-delay: 0.28s; }
+.slide.active .card.animated .grid-2 > *,
+.slide.active .card.animated .grid-3 > *,
+.slide.active .card.animated .grid-4 > * { animation: fadeInUp 0.5s ease both; }
+.slide.active .card.animated .stat-row { animation: fadeIn 0.5s ease both; animation-delay: 0.5s; }
+.slide.active .card.animated .cmd-box { animation: fadeInUp 0.5s ease both; animation-delay: 0.45s; }
+.slide.active .card.animated table { animation: fadeInUp 0.5s ease both; animation-delay: 0.3s; }
+.slide.active .card.animated .step-row { animation: fadeInUp 0.5s ease both; }
+.slide.active .card.animated .feature-card { animation: fadeInUp 0.5s ease both; }
+
+/* Stagger delays for grid cards */
+.slide.active .card.animated .grid-2 > *:nth-child(1),
+.slide.active .card.animated .grid-3 > *:nth-child(1),
+.slide.active .card.animated .grid-4 > *:nth-child(1) { animation-delay: 0.25s; }
+.slide.active .card.animated .grid-2 > *:nth-child(2),
+.slide.active .card.animated .grid-3 > *:nth-child(2),
+.slide.active .card.animated .grid-4 > *:nth-child(2) { animation-delay: 0.32s; }
+.slide.active .card.animated .grid-3 > *:nth-child(3),
+.slide.active .card.animated .grid-4 > *:nth-child(3) { animation-delay: 0.39s; }
+.slide.active .card.animated .grid-4 > *:nth-child(4) { animation-delay: 0.46s; }
+.slide.active .card.animated .grid-2 > *:nth-child(n+3),
+.slide.active .card.animated .grid-3 > *:nth-child(n+4),
+.slide.active .card.animated .grid-4 > *:nth-child(n+5) { animation-delay: 0.5s; }
+
+/* Stagger for step-rows */
+.slide.active .card.animated .step-row:nth-child(1) { animation-delay: 0.25s; }
+.slide.active .card.animated .step-row:nth-child(2) { animation-delay: 0.32s; }
+.slide.active .card.animated .step-row:nth-child(3) { animation-delay: 0.39s; }
+.slide.active .card.animated .step-row:nth-child(4) { animation-delay: 0.46s; }
+
+/* Background number float */
+.bg-number { animation: float 6s ease-in-out infinite; }
+
+/* Card top shimmer */
+.card::after {
+  content: '';
+  position: absolute;
+  top: 0; left: 0;
+  width: 60%; height: 3px;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.8), transparent);
+  animation: shimmer 3s ease-in-out infinite;
+  pointer-events: none;
+}
+
+/* Screenshot images subtle fade on load */
+.screenshot-box img, .grid-2 img, .grid-3 img, .grid-4 img { animation: fadeIn 0.8s ease both; }
+
+/* Stat value counter style */
+.stat-pill .val { font-variant-numeric: tabular-nums; }
 </style>
 </head>
 <body>
 
 <div class="progress-track"><div id="progress-bar"></div></div>
-<div class="slide-counter"><span id="current">1</span> / 16</div>
+<div class="slide-counter"><span id="current">1</span> / 22</div>
 <div class="cat-label" id="catLabel">OVERVIEW</div>
 
 <!-- 슬라이드 1: 표지 -->
@@ -385,15 +490,50 @@ tr:hover td { background: #f8fafc; }
     <div class="badge badge-indigo"><span class="badge-dot"></span>System Architecture</div>
     <div class="slide-title">전체 시스템 아키텍처</div>
     <div class="slide-sub">PWA 프론트엔드 ↔ Flask REST API ↔ AI 분석 엔진 ↔ 공공데이터 연동</div>
-    <div class="cmd-box" style="margin-top:20px; max-width:860px; width:100%">
-      <div class="cmd-text" style="font-size:13px; line-height:2.2; color:#475569; font-weight:400; font-family:'Noto Sans KR',sans-serif">
-        <strong style="color:var(--indigo)">[PWA Frontend]</strong>  사용자 업로드 사진 ──→ <strong style="color:var(--teal)">[Flask Server]</strong>  /api/detect ──→ <strong style="color:var(--orange)">[YOLO-seg]</strong>  6구역 마스크 분할<br>
-        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;↑&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;↓<br>
-        <strong style="color:var(--indigo)">Chart.js 시각화</strong>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<strong style="color:var(--orange)">OpenCV</strong> 투시변환 + 픽셀→부피→무게<br>
-        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;↑&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;↓<br>
-        <strong style="color:var(--indigo)">맞춤형 리포트</strong>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<strong style="color:var(--green)">공공데이터포털 API</strong> 영양소 매칭<br>
-        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;↑&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;↓<br>
-        <strong style="color:var(--indigo)">IndexedDB 캐싱</strong>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<strong style="color:var(--teal)">NEIS API</strong> 급식 메뉴 조회
+    <div class="grid-2" style="margin-top:16px; gap:16px; width:100%; max-width:860px; align-items:stretch; flex:1">
+      <div style="background:#f8fafc; border:1px solid var(--border); border-radius:12px; padding:20px 24px; font-size:13px; line-height:2.2; text-align:center">
+        <div style="font-weight:700; color:var(--indigo); font-size:14px; margin-bottom:10px">📱 PWA Frontend</div>
+        <div style="padding:6px 12px; background:white; border-radius:8px; margin-bottom:6px; border:1px solid #e2e8f0">
+          <div style="font-weight:600">사용자 업로드 사진</div>
+          <div style="color:var(--muted); font-size:11px">스마트폰/웹캠 촬영 → Flask 전송</div>
+        </div>
+        <div style="color:var(--muted); font-size:11px; padding:4px 0">⬇</div>
+        <div style="padding:6px 12px; background:white; border-radius:8px; margin-bottom:6px; border:1px solid #e2e8f0">
+          <div style="font-weight:600">Chart.js 시각화</div>
+          <div style="color:var(--muted); font-size:11px">주차별 칼로리 트렌드 · 영양소 막대그래프</div>
+        </div>
+        <div style="color:var(--muted); font-size:11px; padding:4px 0">⬇</div>
+        <div style="padding:6px 12px; background:white; border-radius:8px; margin-bottom:6px; border:1px solid #e2e8f0">
+          <div style="font-weight:600">맞춤형 리포트</div>
+          <div style="color:var(--muted); font-size:11px">주간/월간 영양 분석 + AI 조언</div>
+        </div>
+        <div style="color:var(--muted); font-size:11px; padding:4px 0">⬇</div>
+        <div style="padding:6px 12px; background:white; border-radius:8px; border:1px solid #e2e8f0">
+          <div style="font-weight:600">IndexedDB 캐싱</div>
+          <div style="color:var(--muted); font-size:11px">오프라인 급식 데이터 · Service Worker</div>
+        </div>
+      </div>
+      <div style="background:#f8fafc; border:1px solid var(--border); border-radius:12px; padding:20px 24px; font-size:13px; line-height:2.2; text-align:center">
+        <div style="font-weight:700; color:var(--teal); font-size:14px; margin-bottom:10px">⚙ Flask REST API</div>
+        <div style="padding:6px 12px; background:white; border-radius:8px; margin-bottom:6px; border:1px solid #e2e8f0">
+          <div style="font-weight:600; color:var(--orange)">YOLO-seg</div>
+          <div style="color:var(--muted); font-size:11px">6개 클래스(tray+tray1~5) 마스크 분할</div>
+        </div>
+        <div style="color:var(--muted); font-size:11px; padding:4px 0">⬇</div>
+        <div style="padding:6px 12px; background:white; border-radius:8px; margin-bottom:6px; border:1px solid #e2e8f0">
+          <div style="font-weight:600; color:var(--orange)">OpenCV</div>
+          <div style="color:var(--muted); font-size:11px">투시변환 · 픽셀→부피→무게 계산</div>
+        </div>
+        <div style="color:var(--muted); font-size:11px; padding:4px 0">⬇</div>
+        <div style="padding:6px 12px; background:white; border-radius:8px; margin-bottom:6px; border:1px solid #e2e8f0">
+          <div style="font-weight:600; color:var(--green)">공공데이터포털 API</div>
+          <div style="color:var(--muted); font-size:11px">식품영양성분DB · 음식→영양소 매칭</div>
+        </div>
+        <div style="color:var(--muted); font-size:11px; padding:4px 0">⬇</div>
+        <div style="padding:6px 12px; background:white; border-radius:8px; border:1px solid #e2e8f0">
+          <div style="font-weight:600; color:var(--teal)">NEIS API</div>
+          <div style="color:var(--muted); font-size:11px">전국 17개 교육청 · 급식 메뉴 조회</div>
+        </div>
       </div>
     </div>
   </div>
@@ -604,38 +744,183 @@ tr:hover td { background: #f8fafc; }
   <div class="card">
     <div class="bg-number">09</div>
     <div class="badge badge-indigo"><span class="badge-dot"></span>AI Generated Insight</div>
-    <div class="slide-title">Gemini 2.0 Flash 기반<br>AI 생성형 조언</div>
+    <div class="slide-title">AI 생성형 조언</div>
     <div class="slide-sub">개인화 DRI + 영양소 데이터 + 알레르기 + 이미지분석 → 5가지 맞춤 조언</div>
-    <div class="grid-2" style="margin-top:16px; grid-template-columns:1fr 1.1fr; gap:16px; align-items:start; width:100%; max-width:900px; text-align:left">
-      <div style="background:#f8fafc; border:1px solid var(--border); border-radius:12px; padding:14px; font-size:11px; line-height:1.6">
-        <div style="font-weight:700; margin-bottom:8px; font-size:13px">📋 AI 입력 데이터</div>
-        <div style="margin-bottom:6px; padding:6px 10px; background:white; border-radius:8px; border-left:3px solid var(--teal)">
+    <div class="grid-2" style="margin-top:16px; grid-template-columns:1fr 1fr; gap:16px; align-items:stretch; width:100%; max-width:920px; text-align:left; flex:1">
+      <div style="background:#f8fafc; border:1px solid var(--border); border-radius:12px; padding:18px; font-size:13px; line-height:1.7; display:flex; flex-direction:column; justify-content:center">
+        <div style="font-weight:700; margin-bottom:10px; font-size:15px">📋 AI 입력 데이터</div>
+        <div style="margin-bottom:8px; padding:8px 12px; background:white; border-radius:8px; border-left:3px solid var(--teal)">
           <strong>개인화 정보</strong><br>키 170cm · 몸무게 60kg · 성별 남 · BMI 20.8 (정상)
         </div>
-        <div style="margin-bottom:6px; padding:6px 10px; background:white; border-radius:8px; border-left:3px solid var(--orange)">
+        <div style="margin-bottom:8px; padding:8px 12px; background:white; border-radius:8px; border-left:3px solid var(--orange)">
           <strong>영양소 분석</strong><br>탄수화물 123% · 단백질 151% · 지방 96%<br>칼슘 89% · 철분 114% · 비타민C 159%
         </div>
-        <div style="margin-bottom:6px; padding:6px 10px; background:white; border-radius:8px; border-left:3px solid var(--red)">
+        <div style="margin-bottom:8px; padding:8px 12px; background:white; border-radius:8px; border-left:3px solid var(--red)">
           <strong>알레르기 정보</strong><br>대두 140회 · 밀 120회 · 아황산류 101회
         </div>
-        <div style="padding:6px 10px; background:white; border-radius:8px; border-left:3px solid var(--indigo)">
+        <div style="padding:8px 12px; background:white; border-radius:8px; border-left:3px solid var(--indigo)">
           <strong>이미지 분석 식사량</strong><br>분석 5회 평균 2,777Kcal · NEIS 대비 과다
         </div>
       </div>
-      <div style="border-radius:12px; overflow:hidden; border:1px solid var(--border)">
+      <div style="border-radius:12px; overflow:hidden; border:1px solid var(--border); display:flex; align-items:center">
         <img src="screenshots/screenshot_ai_report.png" alt="AI 주간 조언 화면" style="width:100%; display:block">
       </div>
-    </div>
-    <div style="margin-top:12px; max-width:900px; border-top:1px solid var(--border); padding-top:10px; font-size:13px; color:#475569; line-height:1.6">
-      <strong>Gemini 생성 결과 예시:</strong> "칼슘이 부족해요 → 요구르트·멸치·두부 추천 | 과식 경향 → 20분 이상 천천히 식사 | 알레르기 대두·밀 주의 | 영양 밸런스 좋아요!"
     </div>
   </div>
 </section>
 
-<!-- 슬라이드 10: 프론트엔드 기능 -->
-<section class="slide" data-cat="FRONTEND">
+<!-- 슬라이드 10: 주간 & 월간 조언 결과 -->
+<section class="slide screenshot-slide" data-cat="AI ADVICE">
   <div class="card">
     <div class="bg-number">10</div>
+    <div class="badge badge-indigo"><span class="badge-dot"></span>AI Advice</div>
+    <div class="slide-title">주간 &amp; 월간 조언 결과</div>
+    <div class="slide-sub">Gemini 2.0 Flash가 생성한 맞춤형 영양 조언 — 학생 개인정보와 급식 데이터 기반</div>
+    <div class="grid-2" style="margin-top:16px; gap:16px; width:100%; max-width:920px; text-align:left; flex:1; align-items:stretch; grid-template-columns:1.5fr 1fr">
+      <div style="border-radius:12px; overflow:hidden; border:1px solid var(--border); display:flex; align-items:center">
+        <img src="img/ai 주간_월간 조언.png" alt="AI 주간/월간 조언" style="width:100%; display:block; border-radius:12px">
+      </div>
+      <div style="border-radius:12px; overflow:hidden; border:1px solid var(--border); display:flex; align-items:center">
+        <img src="img/ai 주간_월간 조언(확대).png" alt="AI 조언 확대" style="width:100%; display:block; border-radius:12px">
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 슬라이드 11: 자녀 정보 입력 & API 키 설정 -->
+<section class="slide screenshot-slide" data-cat="SETUP">
+  <div class="card">
+    <div class="bg-number">11</div>
+    <div class="badge badge-orange"><span class="badge-dot"></span>User Setup</div>
+    <div class="slide-title">자녀 정보 입력 &amp; API 키 설정</div>
+    <div class="slide-sub">AI 생성형 조언을 위한 맞춤 데이터와 API 연결 설정</div>
+    <div class="grid-2" style="margin-top:16px; gap:16px; width:100%; max-width:900px; text-align:center; color:var(--muted); flex:1; align-items:center">
+      <div>
+        <div style="border-radius:12px; overflow:hidden; border:1px solid var(--border); margin-bottom:6px">
+          <img src="img/자녀 정보 입력.png" alt="자녀 정보 설정" style="width:100%; display:block">
+        </div>
+        <div style="font-size:12px; color:#475569; line-height:1.5">
+          <strong style="font-size:13px">👤 자녀 정보 입력</strong><br>키 · 몸무게 · BMI · 성별 · 건강상태 설정
+        </div>
+      </div>
+      <div>
+        <div style="border-radius:12px; overflow:hidden; border:1px solid var(--border); margin-bottom:6px">
+          <img src="img/api 설정.png" alt="API 키 설정" style="width:100%; display:block">
+        </div>
+        <div style="font-size:12px; color:#475569; line-height:1.5">
+          <strong style="font-size:13px">⚙ API 키 설정</strong><br>AI 분석을 위한 Gemini API 키 등록
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 슬라이드 12: 알레르기 선택 & AI 분석 연동 -->
+<section class="slide screenshot-slide" data-cat="ALLERGY">
+  <div class="card">
+    <div class="bg-number">12</div>
+    <div class="badge badge-red"><span class="badge-dot"></span>Allergy Integration</div>
+    <div class="slide-title">알레르기 선택 &amp; AI 분석 연동</div>
+    <div class="slide-sub">선택한 알레르기 정보가 급식 경고와 AI 맞춤 조언에 활용됩니다</div>
+    <div class="grid-2" style="margin-top:16px; gap:16px; width:100%; max-width:920px; text-align:left; flex:1; align-items:stretch">
+      <div style="border-radius:12px; overflow:hidden; border:1px solid var(--border); display:flex; align-items:center">
+        <img src="screenshots/screenshot_allergy.png" alt="알레르기 선택 화면" style="width:100%; display:block">
+      </div>
+      <div style="background:#f8fafc; border:1px solid var(--border); border-radius:12px; padding:18px; font-size:13px; line-height:1.7; display:flex; flex-direction:column; justify-content:center">
+        <div style="font-weight:700; margin-bottom:10px; font-size:15px">🔄 알레르기 → AI 분석 파이프라인</div>
+        <div style="margin-bottom:8px; padding:8px 12px; background:white; border-radius:8px; border-left:3px solid var(--red)">
+          <strong>① 알레르기 선택</strong><br>18대 알레르기 유발 식품 중 사용자 맞춤 선택
+        </div>
+        <div style="margin-bottom:8px; padding:8px 12px; background:white; border-radius:8px; border-left:3px solid var(--orange)">
+          <strong>② 급식 메뉴 경고 표시</strong><br>선택 알레르기 포함 메뉴에 ⚠️ 아이콘 + 빨간색 강조
+        </div>
+        <div style="padding:8px 12px; background:white; border-radius:8px; border-left:3px solid var(--indigo)">
+          <strong>③ AI 맞춤 조언 반영</strong><br>"알레르기 대두·밀 주의" → Gemini가 대체 식품 추천
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 슬라이드 13: 프롬프트 설계 방식 & 이유 -->
+<section class="slide" data-cat="PROMPT">
+  <div class="card">
+    <div class="bg-number">13</div>
+    <div class="badge badge-indigo"><span class="badge-dot"></span>AI Prompt Design</div>
+    <div class="slide-title">프롬프트 설계 — 어떻게 &amp; 왜?</div>
+    <div class="slide-sub">Gemini 2.0 Flash API에 전달하는 프롬프트 구조와 설계 의사결정</div>
+    <div class="desc-list" style="text-align:left; max-width:860px; margin-top:16px">
+      <div class="step-row">
+        <div class="step-num">01</div>
+        <div class="step-content">
+          <div class="step-title">역할 부여 (Role Prompting)</div>
+          <div class="step-desc">"당신은 대한민국 학교 영양사이자 식품영양학 박사입니다" — 전문성 기반의 신뢰도 높은 조언 유도</div>
+        </div>
+      </div>
+      <div class="step-row">
+        <div class="step-num">02</div>
+        <div class="step-content">
+          <div class="step-title">맥락 데이터 구조화 (Context Injection)</div>
+          <div class="step-desc">개인화 정보(키/몸무게/BMI/성별/건강상태) + 6대 영양소 섭취율 + 알레르기 노출 + 이미지 분석 식사량을 JSON 형태로 주입</div>
+        </div>
+      </div>
+      <div class="step-row">
+        <div class="step-num">03</div>
+        <div class="step-content">
+          <div class="step-title">5가지 조언 템플릿 (Output Formatting)</div>
+          <div class="step-desc">① 영양 균형 진단 ② 부족/과잉 영양소 교정 ③ 알레르기 대체 식품 추천 ④ 식사 속도/량 습관 코칭 ⑤ 종합 평가 — 일관된 출력 구조 보장</div>
+        </div>
+      </div>
+      <div class="step-row">
+        <div class="step-num">04</div>
+        <div class="step-content">
+          <div class="step-title">안전장치 (Guardrails)</div>
+          <div class="step-desc">"의학적 진단이 아닌 참고용입니다" 면책 문구 포함, 200 토큰 이하 간결한 응답 강제, 비속어/편향 필터링</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 슬라이드 14: 학부모 리포트 -->
+<section class="slide screenshot-slide" data-cat="REPORT">
+  <div class="card">
+    <div class="bg-number">14</div>
+    <div class="badge badge-teal"><span class="badge-dot"></span>Parent Report</div>
+    <div class="slide-title">학부모 리포트 — 영양 분석 종합 대시보드</div>
+    <div class="slide-sub">주간/월간 리포트로 자녀의 급식 영양 상태와 AI 분석 결과를 한눈에 확인</div>
+    <div class="grid-2" style="margin-top:16px; gap:16px; width:100%; max-width:920px; text-align:center; flex:1; align-items:center">
+      <div>
+        <div style="border-radius:12px; overflow:hidden; border:1px solid var(--border); display:flex; align-items:center">
+          <img src="img/주간 리포트.png" alt="주간 리포트" style="width:100%; display:block; border-radius:12px">
+        </div>
+      </div>
+      <div>
+        <div style="border-radius:12px; overflow:hidden; border:1px solid var(--border); display:flex; align-items:center">
+          <img src="img/월간 리포트.png" alt="월간 리포트" style="width:100%; display:block; border-radius:12px">
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 슬라이드 15: 월간 통계 -->
+<section class="slide screenshot-slide" data-cat="STATS">
+  <div class="card">
+    <div class="bg-number">15</div>
+    <div class="badge badge-teal"><span class="badge-dot"></span>Monthly Stats</div>
+    <div class="slide-title">월간 통계 — 주간별 영양 분석 트렌드</div>
+    <div class="slide-sub">주간 단위로 급식 영양소 섭취량을 그래프로 확인하고 장기 트렌드 분석</div>
+    <div style="border-radius:12px; overflow:hidden; border:1px solid var(--border); margin-top:8px; width:100%; max-width:920px; flex:1; display:flex; align-items:center">
+      <img src="img/주간별 통계(월간 통계).png" alt="월간 통계 화면" style="max-width:100%; max-height:420px; width:auto; height:auto; display:block; border-radius:12px; margin:0 auto">
+    </div>
+  </div>
+</section>
+
+<!-- 슬라이드 16: 프론트엔드 기능 -->
+<section class="slide" data-cat="FRONTEND">
+  <div class="card">
+    <div class="bg-number">16</div>
     <div class="badge badge-teal"><span class="badge-dot"></span>Frontend</div>
     <div class="slide-title">5개 탭 통합 대시보드</div>
     <div class="slide-sub">모든 기능을 하나의 PWA에서 — 학생부터 학부모까지 누구나 사용 가능</div>
@@ -679,10 +964,10 @@ tr:hover td { background: #f8fafc; }
   </div>
 </section>
 
-<!-- 슬라이드 11: PWA & 오프라인 지원 -->
+<!-- 슬라이드 17: PWA & 오프라인 지원 -->
 <section class="slide" data-cat="PWA">
   <div class="card">
-    <div class="bg-number">11</div>
+    <div class="bg-number">17</div>
     <div class="badge badge-indigo"><span class="badge-dot"></span>PWA & Offline</div>
     <div class="slide-title">PWA로 어디서나, 오프라인에서도</div>
     <div class="slide-sub">IndexedDB + Service Worker + 4중 CORS 프록시 폴백</div>
@@ -713,36 +998,45 @@ tr:hover td { background: #f8fafc; }
   </div>
 </section>
 
-<!-- 슬라이드 12: 데모 화면 ① -->
+<!-- 슬라이드 18: 오늘의 급식 -->
 <section class="slide screenshot-slide" data-cat="DEMO 01">
   <div class="card">
-    <div class="bg-number">12</div>
+    <div class="bg-number">18</div>
     <div class="badge badge-teal"><span class="badge-dot"></span>Demo 01</div>
-    <div class="slide-title">오늘 급식 & 월간 통계</div>
+    <div class="slide-title">오늘의 급식</div>
     <div class="slide-sub">실제 PWA 화면 — 메뉴 확인부터 영양 균형 분석까지 한눈에</div>
-    <div class="screenshot-box" id="screenshot-11" style="padding:0; border:1px solid var(--border); overflow:hidden">
-      <img src="screenshots/screenshot_today.png" alt="오늘 급식 화면" style="width:100%; display:block; border-radius:12px">
+    <div style="border-radius:12px; overflow:hidden; border:1px solid var(--border); margin-top:8px; width:100%; max-width:920px; flex:1; display:flex; align-items:center">
+      <img src="img/오늘의 급식.png" alt="오늘의 급식 화면" style="max-width:100%; max-height:420px; width:auto; height:auto; display:block; border-radius:12px; margin:0 auto">
     </div>
   </div>
 </section>
 
-<!-- 슬라이드 13: 데모 화면 ② -->
+<!-- 슬라이드 19: 데모 화면 ② -->
 <section class="slide screenshot-slide" data-cat="DEMO 02">
   <div class="card">
-    <div class="bg-number">13</div>
+    <div class="bg-number">19</div>
     <div class="badge badge-orange"><span class="badge-dot"></span>Demo 02</div>
     <div class="slide-title">AI 이미지 분석 결과</div>
     <div class="slide-sub">YOLO 마스크 오버레이 + 구역별 영양소 상세 계산 결과</div>
-    <div class="screenshot-box" id="screenshot-12" style="padding:0; border:1px solid var(--border); overflow:hidden">
-      <img src="screenshots/screenshot_image.png" alt="AI 이미지 분석 화면" style="width:100%; display:block; border-radius:12px">
+    <div class="grid-2" style="margin-top:16px; gap:16px; width:100%; max-width:920px; text-align:center; flex:1; align-items:center">
+      <div>
+        <div style="border-radius:12px; overflow:hidden; border:1px solid var(--border); display:flex; align-items:center">
+          <img src="img/급식 이미지 분석1.png" alt="급식 이미지 분석1" style="width:100%; display:block; border-radius:12px">
+        </div>
+      </div>
+      <div>
+        <div style="border-radius:12px; overflow:hidden; border:1px solid var(--border); display:flex; align-items:center">
+          <img src="img/급식 이미지 분석2.png" alt="급식 이미지 분석2" style="width:100%; display:block; border-radius:12px">
+        </div>
+      </div>
     </div>
   </div>
 </section>
 
-<!-- 슬라이드 14: 성과 및 기대효과 -->
+<!-- 슬라이드 20: 성과 및 기대효과 -->
 <section class="slide" data-cat="IMPACT">
   <div class="card">
-    <div class="bg-number">14</div>
+    <div class="bg-number">20</div>
     <div class="badge badge-indigo"><span class="badge-dot"></span>Impact</div>
     <div class="slide-title">성과 및 기대효과</div>
     <div class="slide-sub">공공데이터와 AI의 결합이 만드는 실질적 교육 현장 개선</div>
@@ -774,10 +1068,10 @@ tr:hover td { background: #f8fafc; }
   </div>
 </section>
 
-<!-- 슬라이드 15: 향후 발전 계획 -->
+<!-- 슬라이드 21: 향후 발전 계획 -->
 <section class="slide" data-cat="FUTURE">
   <div class="card">
-    <div class="bg-number">15</div>
+    <div class="bg-number">21</div>
     <div class="badge badge-indigo"><span class="badge-dot"></span>Future Plan</div>
     <div class="slide-title">향후 발전 계획</div>
     <div class="slide-sub">상산고에서 시작해 전국 학교로, AI 급식 관리의 새로운 표준을 제시합니다</div>
@@ -814,10 +1108,10 @@ tr:hover td { background: #f8fafc; }
   </div>
 </section>
 
-<!-- 슬라이드 16: 맺음말 -->
+<!-- 슬라이드 22: 맺음말 -->
 <section class="slide" data-cat="CLOSING">
   <div class="card">
-    <div class="bg-number">16</div>
+    <div class="bg-number">22</div>
     <div class="badge badge-teal"><span class="badge-dot"></span>Closing</div>
     <div class="slide-title">AI와 공공데이터로 만드는<br>건강한 학교 급식</div>
     <div class="slide-sub">제8회 교육 공공데이터 AI 활용대회 · 중고등부문</div>
@@ -857,6 +1151,36 @@ const catLabel = document.getElementById('catLabel');
 const prevBtn = document.getElementById('prevBtn');
 const nextBtn = document.getElementById('nextBtn');
 
+function animateCard(slideIndex) {
+  const card = slides[slideIndex]?.querySelector('.card');
+  if (!card) return;
+  card.classList.remove('animated');
+  void card.offsetWidth; // force reflow to restart animation
+  card.classList.add('animated');
+}
+
+function animateCounters(slideIndex) {
+  const vals = slides[slideIndex]?.querySelectorAll('.stat-pill .val');
+  if (!vals) return;
+  vals.forEach(el => {
+    const target = el.textContent.trim();
+    const num = parseInt(target);
+    if (isNaN(num) || num < 1) return;
+    el.textContent = '0';
+    el.dataset.target = num;
+    const duration = 800;
+    const start = performance.now();
+    function tick(now) {
+      const pct = Math.min((now - start) / duration, 1);
+      const eased = 1 - Math.pow(1 - pct, 3);
+      el.textContent = Math.round(eased * num);
+      if (pct < 1) requestAnimationFrame(tick);
+      else el.textContent = num;
+    }
+    requestAnimationFrame(tick);
+  });
+}
+
 function updateSlide() {
   slides.forEach((s, i) => s.classList.toggle('active', i === currentSlide));
   const pct = ((currentSlide + 1) / total) * 100;
@@ -865,6 +1189,8 @@ function updateSlide() {
   catLabel.textContent = slides[currentSlide].dataset.cat || '';
   prevBtn.disabled = currentSlide === 0;
   nextBtn.disabled = currentSlide === total - 1;
+  requestAnimationFrame(() => animateCard(currentSlide));
+  setTimeout(() => animateCounters(currentSlide), 600);
 }
 
 function nextSlide() { if (currentSlide < total - 1) { currentSlide++; updateSlide(); } }
@@ -873,6 +1199,17 @@ function prevSlide() { if (currentSlide > 0) { currentSlide--; updateSlide(); } 
 document.addEventListener('keydown', e => {
   if (e.key === 'ArrowRight' || e.key === ' ') nextSlide();
   if (e.key === 'ArrowLeft') prevSlide();
+});
+
+// Touch / swipe support
+let touchStartX = 0;
+document.addEventListener('touchstart', e => { touchStartX = e.touches[0].clientX; });
+document.addEventListener('touchend', e => {
+  const diff = e.changedTouches[0].clientX - touchStartX;
+  if (Math.abs(diff) > 50) {
+    if (diff < 0) nextSlide();
+    else prevSlide();
+  }
 });
 
 updateSlide();
