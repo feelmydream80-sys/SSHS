@@ -1,0 +1,9 @@
+analysis_results/
+uploaded_images/
+*.pth
+__pycache__/
+*.pyc
+.env
+Depth-Anything-V2-main/
+segment-anything-main/
+model/

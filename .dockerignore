@@ -1,0 +1,11 @@
+__pycache__/
+.git/
+.gitignore
+*.md
+doc/
+model/
+Depth-Anything-V2-Main/
+segment-anything-main/
+analysis_results/
+uploaded_images/
+*.pth
