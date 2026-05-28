@@ -766,7 +766,7 @@ ${ns}
     if (_aiModel === 'deepseek') {
       url = '/api/proxy/opencode-ai';
       headers = { 'Content-Type': 'application/json' };
-      body = { model: 'deepseek-v4-flash-free', messages: [{ role: 'user', content: prompt }], max_tokens: 8192 };
+      body = { model: 'deepseek-v4-flash-free', messages: [{ role: 'user', content: prompt }], max_tokens: 32768 };
     } else {
       url = `https://generativelanguage.googleapis.com/v1/models/gemini-2.0-flash:generateContent?key=${GK}`;
       headers = { 'Content-Type': 'application/json' };
@@ -775,7 +775,7 @@ ${ns}
     const res = await fetch(url, { method: 'POST', headers, body: JSON.stringify(body) });
     const j = await res.json();
     const t = _aiModel === 'deepseek'
-      ? (j.choices?.[0]?.message?.content || '분석 결과를 받지 못했습니다.')
+      ? (j.choices?.[0]?.message?.content || j.choices?.[0]?.message?.reasoning_content || '분석 결과를 받지 못했습니다.')
       : (j.candidates?.[0]?.content?.parts?.[0]?.text || '분석 결과를 받지 못했습니다.');
     c.style.fontStyle = 'normal';
     c.style.color = 'rgba(255,255,255,.8)';
