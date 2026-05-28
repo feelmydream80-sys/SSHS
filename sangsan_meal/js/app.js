@@ -699,8 +699,8 @@ async function getAIReport() {
   const ns = Object.entries(useDRI).filter(([k]) => k !== '권장칼로리').map(([k, i]) => {
     const actualAvg = d.ntrAvgs[k] || 0;
     const rt = i.rec ? Math.round(actualAvg / i.rec * 100) : 0;
-    return `${k.replace(/\(.*?\)/, '')}: 평균${actualAvg}(권장${i.rec},${rt}%), 부족${d.ntrLow[k] || 0}일, 과잉${d.ntrOver[k] || 0}일`;
-  }).join('\n');
+    return `${k.replace(/\(.*?\)/, '')} ${rt}%`;
+  }).join(' · ');
 
   const ta = Object.entries(d.ac).sort((a, b) => b[1] - a[1]).slice(0, 5).map(([n, c]) => `${AM[n] || n}:${c}회`).join(',');
   const userAllergies = MA.map(n => AM[n]).filter(Boolean).join(', ') || '없음';
@@ -715,12 +715,8 @@ async function getAIReport() {
   let imageInsightText = '';
   if (imageData && imageData.imageCount > 0) {
     const diff = imageData.avgImageKcal - imageData.avgNEISKcal;
-    const trendMsg = diff > 0
-      ? `NEIS 대비 평균 ${diff}Kcal 높게 측정되어 실제 섭취량이 제공량보다 많을 수 있습니다.`
-      : diff < 0
-        ? `NEIS 대비 평균 ${Math.abs(diff)}Kcal 낮게 측정되어 실제 섭취량이 제공량보다 적을 수 있습니다.`
-        : 'NEIS 제공 칼로리와 유사하게 측정되어 적정 섭취 중입니다.';
-    imageInsightText = `\n\n[이미지 분석 기반 실제 식사량]\n- 이미지 분석 ${imageData.imageCount}회\n- 분석 평균 칼로리: ${imageData.avgImageKcal}Kcal\n- NEIS 제공 평균 칼로리: ${imageData.avgNEISKcal}Kcal\n- 1회 평균 예상 무게: ${imageData.avgWeight}g\n- 식사량 평가: ${trendMsg}`;
+    const trendMsg = diff > 0 ? `NEIS대비 +${diff}Kcal` : diff < 0 ? `NEIS대비 ${diff}Kcal` : 'NEIS와 유사';
+    imageInsightText = ` | 이미지분석 ${imageData.imageCount}회 평균 ${imageData.avgImageKcal}Kcal/${imageData.avgWeight}g ${trendMsg}`;
   }
 
   const profile = _childProfile;
@@ -735,28 +731,22 @@ async function getAIReport() {
     else bmiLabel = '정상';
     healthLabel = getHealthLabel(profile.health) || '정보 없음';
     const genderLabel = profile.gender === 'male' ? '남' : profile.gender === 'female' ? '여' : '미지정';
-    profileText = `\n\n[자녀 정보]\n- 키: ${profile.height}cm / 몸무게: ${profile.weight}kg / 성별: ${genderLabel}\n- BMI: ${bmi} (${bmiLabel})\n- 건강 상태: ${healthLabel}${profile.note ? '\n- 추가: ' + profile.note : ''}`;
+    profileText = ` | ${profile.height}cm/${profile.weight}kg/${genderLabel} BMI${bmi}(${bmiLabel}) ${healthLabel}${profile.note ? '/' + profile.note : ''}`;
   }
 
-  const calInsight = profile ? `\n- 개인 권장 칼로리: ${useDRI['권장칼로리']?.rec || '정보없음'}Kcal (일반 2600Kcal 대비)` : '';
+  const calInsight = profile ? ` | 권장칼로리 ${useDRI['권장칼로리']?.rec || '?'}Kcal` : '';
 
-  const prompt = `상산고등학교 ${periodKo}(${dateRange}) 급식 분석 결과입니다.${profileText}
+  const prompt = `상산고 ${periodKo}(${dateRange}) 급식 분석${profileText}
 
-[영양소 분석]
-${ns}
-[식사량 분석]
-- 평균 칼로리: ${d.avgCal}Kcal (${daysInfo})${calInsight}
+[영양] ${ns}
+[식사] 평균 ${d.avgCal}Kcal (${daysInfo})${calInsight}${imageInsightText}
+[알레르기] 설정:${userAllergies} | 주의:${warningAllergies}
 
-[알레르기 정보]
-- 사용자 설정 알레르기: ${userAllergies}
-- 급식 내 자주 등장 알레르기: ${ta}
-- 주의 알레르기 노출: ${warningAllergies}${imageInsightText}
-
-학부모에게 다음 5가지를 친근하고 실천 가능한 조언으로 알려주세요:
-1. 🥗 ${periodKo} 부족한 영양소와 집에서 보완할 구체적 식품 (2~3가지)
-2. ⚠️ 알레르기 관련 주의사항 (특히 사용자 알레르기 식품 노출 빈도 강조)
-3. 🍽️ 식사량 패턴 인사이트 (과식/부족 여부 및 개선 방법)
-4. 📊 자녀 건강 상태${profile ? '(' + healthLabel + ')' : ''} 기반 맞춤 조언
+다음 5가지를 학부모에게 친근하고 실천 가능한 조언으로 알려주세요:
+1. 🥗 ${periodKo} 부족한 영양소와 보완 식품
+2. ⚠️ 알레르기 주의사항 (특히 사용자 알레르기 노출 빈도)
+3. 🍽️ 식사량 패턴 인사이트 (과식/부족)
+4. 📊 건강 상태${profile ? '(' + healthLabel + ')' : ''} 기반 맞춤 조언
 5. ✅ ${periodKo} 총평
 
 전문용어 없이 실천 가능한 조언으로 작성해주세요.`;
@@ -766,7 +756,7 @@ ${ns}
     if (_aiModel === 'deepseek') {
       url = '/api/proxy/opencode-ai';
       headers = { 'Content-Type': 'application/json' };
-      body = { model: 'deepseek-v4-flash-free', messages: [{ role: 'user', content: prompt }], max_tokens: 32768 };
+      body = { model: 'deepseek-v4-flash-free', messages: [{ role: 'user', content: prompt }], max_tokens: 12288 };
     } else {
       url = `https://generativelanguage.googleapis.com/v1/models/gemini-2.0-flash:generateContent?key=${GK}`;
       headers = { 'Content-Type': 'application/json' };
