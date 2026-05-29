@@ -173,7 +173,7 @@ main{position:relative;z-index:10;max-width:960px;margin:0 auto;padding:24px 16p
     <div class="modal-label">Claude API KEY (AI 분석용 — 선택)</div>
     <input class="modal-input" id="ci" placeholder="sk-ant-... (없으면 비워두세요)" type="password">
     <div class="current-school">
-      <span>현재 학교: <b id="currentSchoolName">상산고등학교</b></span>
+      <span>현재 학교: <b id="currentSchoolName">**고등학교</b></span>
       <button class="school-btn" onclick="toggleSchoolPanel()">학교 변경</button>
     </div>
     <div class="school-panel" id="schoolPanel">
@@ -274,7 +274,7 @@ const SIDO_LIST=[
   {code:'N10',name:'전라북도'},{code:'O10',name:'전라남도'},{code:'P10',name:'전북특별자치도'},
   {code:'Q10',name:'경상남도'},{code:'R10',name:'제주특별자치도'}
  ];
-const DEFAULT_SCHOOL={ATPT:'P10',CODE:'8321090',NAME:'상산고등학교'};
+const DEFAULT_SCHOOL={ATPT:'P10',CODE:'8321090',NAME:'**고등학교'};
 let currentSchool={...DEFAULT_SCHOOL};
 /* CORS 프록시 — 응답 형식별로 파싱 처리 */
 const PROXIES = [
@@ -339,10 +339,10 @@ function initNavSchoolSelect() {
   const s = document.getElementById('navSido');
   s.innerHTML = '<option value="">시·도</option>' + SIDO_LIST.map(x => `<option value="${x.code}">${x.name}</option>`).join('');
   
-  /* 상산고등학교로 기본 설정 */
+  /* **고등학교로 기본 설정 */
   document.getElementById('navSido').value = 'P10';
   document.getElementById('navLevel').value = '고등학교';
-  document.getElementById('navSchoolSearch').value = '상산고등학교';
+  document.getElementById('navSchoolSearch').value = '**고등학교';
   searchSchoolsRealtime('nav');
   
   /* 검색 입력 이벤트 등록 */
@@ -827,7 +827,7 @@ async function getAI(){
   c.style.fontStyle='italic';c.style.color='var(--muted)';c.textContent='AI가 이번 달 급식 데이터를 분석하고 있습니다...';
   const ns=Object.entries(DRI).map(([k,i])=>{const avg=d.ntrAvgs[k],rt=Math.round(avg/i.rec*100);return`${k.replace(/\(.*?\)/,'')}: 평균${avg}(권장${i.rec},${rt}%), 부족${d.ntrLow[k]}일, 과잉${d.ntrOver[k]}일`;}).join('\n');
   const ta=Object.entries(d.ac).sort((a,b)=>b[1]-a[1]).slice(0,5).map(([n,c])=>`${AM[n]||n+'번'}:${c}회`).join(',');
-  const prompt=`상산고등학교 이번 달 급식 영양 분석입니다.\n\n[영양소]\n${ns}\n[평균칼로리]${d.avgCal}Kcal(${d.dates.length}일)\n[자주 등장 알레르기]${ta}\n\n학부모에게 다음 3가지를 친근하게 알려주세요:\n1. 부족한 영양소와 집에서 보완할 구체적 식품(2~3가지)\n2. 주의할 영양 패턴\n3. 전반적 평가 한 줄 요약\n전문용어 없이 실천 가능한 조언으로.`;
+  const prompt=`**고등학교 이번 달 급식 영양 분석입니다.\n\n[영양소]\n${ns}\n[평균칼로리]${d.avgCal}Kcal(${d.dates.length}일)\n[자주 등장 알레르기]${ta}\n\n학부모에게 다음 3가지를 친근하게 알려주세요:\n1. 부족한 영양소와 집에서 보완할 구체적 식품(2~3가지)\n2. 주의할 영양 패턴\n3. 전반적 평가 한 줄 요약\n전문용어 없이 실천 가능한 조언으로.`;
   try{
     const res=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':CK,'anthropic-version':'2023-06-01'},body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:700,messages:[{role:'user',content:prompt}]})});
     const j=await res.json();
@@ -1117,7 +1117,7 @@ main{position:relative;z-index:10;max-width:960px;margin:0 auto;padding:24px 16p
     <div class="modal-label">Claude API KEY (AI 분석용 — 선택)</div>
     <input class="modal-input" id="ci" placeholder="sk-ant-... (없으면 비워두세요)" type="password">
     <div class="current-school">
-      <span>현재 학교: <b id="currentSchoolName">상산고등학교</b></span>
+      <span>현재 학교: <b id="currentSchoolName">**고등학교</b></span>
       <button class="school-btn" onclick="toggleSchoolPanel()">학교 변경</button>
     </div>
     <div class="school-panel" id="schoolPanel">
@@ -1726,7 +1726,7 @@ async function getAI(){
   c.style.fontStyle='italic';c.style.color='var(--muted)';c.textContent='AI가 이번 달 급식 데이터를 분석하고 있습니다...';
   const ns=Object.entries(DRI).map(([k,i])=>{const avg=d.ntrAvgs[k],rt=Math.round(avg/i.rec*100);return`${k.replace(/\(.*?\)/,'')}: 평균${avg}(권장${i.rec},${rt}%), 부족${d.ntrLow[k]}일, 과잉${d.ntrOver[k]}일`;}).join('\n');
   const ta=Object.entries(d.ac).sort((a,b)=>b[1]-a[1]).slice(0,5).map(([n,c])=>`${AM[n]||n+'번'}:${c}회`).join(',');
-  const prompt=`상산고등학교 이번 달 급식 영양 분석입니다.\n\n[영양소]\n${ns}\n[평균칼로리]${d.avgCal}Kcal(${d.dates.length}일)\n[자주 등장 알레르기]${ta}\n\n학부모에게 다음 3가지를 친근하게 알려주세요:\n1. 부족한 영양소와 집에서 보완할 구체적 식품(2~3가지)\n2. 주의할 영양 패턴\n3. 전반적 평가 한 줄 요약\n전문용어 없이 실천 가능한 조언으로.`;
+  const prompt=`**고등학교 이번 달 급식 영양 분석입니다.\n\n[영양소]\n${ns}\n[평균칼로리]${d.avgCal}Kcal(${d.dates.length}일)\n[자주 등장 알레르기]${ta}\n\n학부모에게 다음 3가지를 친근하게 알려주세요:\n1. 부족한 영양소와 집에서 보완할 구체적 식품(2~3가지)\n2. 주의할 영양 패턴\n3. 전반적 평가 한 줄 요약\n전문용어 없이 실천 가능한 조언으로.`;
   try{
     const res=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':CK,'anthropic-version':'2023-06-01'},body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:700,messages:[{role:'user',content:prompt}]})});
     const j=await res.json();

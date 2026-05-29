@@ -1,6 +1,6 @@
 // 상수 정의
 export const SCHOOL = { ATPT: 'P10', CODE: '8321090' };
-export const DEFAULT_SCHOOL = { ATPT: 'P10', CODE: '8321090', NAME: '상산고등학교' };
+export const DEFAULT_SCHOOL = { ATPT: 'P10', CODE: '8321090', NAME: '**고등학교' };
 export const NEIS = 'https://open.neis.go.kr/hub/mealServiceDietInfo';
 export const DEFAULT_NEIS_KEY = '35b75a10a2fe426b8aa1b072ab2be207';
 

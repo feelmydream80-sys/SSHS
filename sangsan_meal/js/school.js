@@ -86,7 +86,7 @@ export function initNavSchoolSelect() {
 
   document.getElementById('navSido').value = 'P10';
   document.getElementById('navLevel').value = '고등학교';
-  document.getElementById('navSchoolSearch').value = '상산고등학교';
+  document.getElementById('navSchoolSearch').value = '**고등학교';
 
   const searchInput = document.getElementById('navSchoolSearch');
   searchInput.addEventListener('input', window.debounce(() => searchSchoolsRealtime('nav', window.NK), 300));

@@ -8,7 +8,7 @@ const SIDO_LIST = [
   { code: 'N10', name: '전라북도' }, { code: 'O10', name: '전라남도' }, { code: 'P10', name: '전북특별자치도' },
   { code: 'Q10', name: '경상남도' }, { code: 'R10', name: '제주특별자치도' }
 ];
-const DEFAULT_SCHOOL = { ATPT: 'P10', CODE: '8321090', NAME: '상산고등학교' };
+const DEFAULT_SCHOOL = { ATPT: 'P10', CODE: '8321090', NAME: '**고등학교' };
 let currentSchool = { ...DEFAULT_SCHOOL };
 
 const PROXIES = [
@@ -740,7 +740,7 @@ async function getAIReport() {
 
   const calInsight = profile ? `\n- 개인 권장 칼로리: ${useDRI['권장칼로리']?.rec || '정보없음'}Kcal (일반 2600Kcal 대비)` : '';
 
-  const prompt = `상산고등학교 ${periodKo}(${dateRange}) 급식 분석 결과입니다.${profileText}
+  const prompt = `**고등학교 ${periodKo}(${dateRange}) 급식 분석 결과입니다.${profileText}
 
 [영양소 분석]
 ${ns}
@@ -1253,7 +1253,7 @@ function initNavSchoolSelect() {
   s.innerHTML = '<option value="">시·도</option>' + SIDO_LIST.map(x => `<option value="${x.code}">${x.name}</option>`).join('');
   document.getElementById('navSido').value = 'P10';
   document.getElementById('navLevel').value = '고등학교';
-  document.getElementById('navSchoolSearch').value = '상산고등학교';
+  document.getElementById('navSchoolSearch').value = '**고등학교';
   searchSchoolsRealtime('nav');
   const searchInput = document.getElementById('navSchoolSearch');
   searchInput.addEventListener('input', debounce(() => searchSchoolsRealtime('nav'), 300));
